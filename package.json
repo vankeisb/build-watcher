@@ -1,0 +1,27 @@
+{
+  "name": "b-loot",
+  "version": "1.0.0",
+  "description": "Multi-server build monitoring",
+  "main": "main.js",
+  "scripts": {
+    "build": "elm make --output dist/app.js src/*.elm",
+    "start": "electron .",
+    "debug": "electron --inspect-brk=5858 ."
+  },
+  "repository": "https://github.com/VANKEISB/b-loot",
+  "keywords": [
+    "Build",
+    "Monitoring",
+    "Bamboo",
+    "Travis",
+    "Notifications"
+  ],
+  "productName": "B-loot",
+  "author": "remi@rvkb.com",
+  "license": "CC0-1.0",
+  "devDependencies": {
+    "electron": "~1.7.8",
+    "electron-packager": "^10.1.0",
+    "elm": "0.18.0"
+  }
+}
