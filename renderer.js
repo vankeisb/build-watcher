@@ -32,6 +32,19 @@ a.ports.openURL.subscribe(function(url) {
     })
 })
 
+a.ports.desktopNotification.subscribe(function(data) {
+    const n = new Notification(data.title, {
+        body: data.body
+    })
+    n.onclick = () => {
+        debugger;
+        // TODO open browser with url ?
+        sendToMain({
+            kind: "notif-clicked"
+        })
+    }
+})
+
 ipcRenderer.on('main-msg', (event, arg) => {
     if (arg.kind === 'data-loaded') {
         if (arg.success) {

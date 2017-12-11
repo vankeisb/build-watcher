@@ -20,3 +20,7 @@ type alias BuildResult =
 stringOrEmpty : Decoder String
 stringOrEmpty =
     oneOf [ string, succeed "" ]
+
+
+appTitle =
+    "Build Watcher"

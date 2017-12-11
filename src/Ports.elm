@@ -36,3 +36,11 @@ port saveData : PersistedData -> Cmd m
 port loadData : () -> Cmd m
 
 port openURL : String -> Cmd m
+
+type alias DesktopNotif =
+    { title : String
+    , body : String
+    , isGreen : Bool
+    }
+
+port desktopNotification : DesktopNotif -> Cmd m

@@ -1,27 +1,28 @@
 module View exposing (..)
 
 
+import Common exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events
-import Messages exposing (..)
-import Model exposing (..)
-import Material.Scheme
-import Material.Options as Options exposing (css)
-import Material.Layout as Layout
-import Material.List as Lists
-import Style exposing (..)
-import Material.Typography as Typo
-import Material.Menu as Menu
-import Material.Icon as Icon
-import Material.Tabs as Tabs
-import Material.Grid as Grid
-import Material.Textfield as Textfield
+import Html.Events exposing (onWithOptions)
 import Material.Button as Button
 import Material.Color as Color
+import Material.Dialog as Dialog
+import Material.Grid as Grid
+import Material.Icon as Icon
+import Material.Layout as Layout
+import Material.List as Lists
+import Material.Menu as Menu
+import Material.Options as Options exposing (css)
+import Material.Scheme
 import Material.Snackbar as Snackbar
-import Common exposing (..)
-
+import Material.Tabs as Tabs
+import Material.Textfield as Textfield
+import Material.Typography as Typo
+import Messages exposing (..)
+import Model exposing (..)
+import Style exposing (..)
+import Json.Decode as Json
 
 i name =
     Icon.view name [ css "width" "40px" ]
@@ -46,7 +47,7 @@ view model =
                     [ Icon.view "remove_red_eye"
                         [ css "padding-right" "12px"
                         ]
-                    , span [] [ text "b-loot " ]
+                    , span [] [ text appTitle ]
                     , span []
                         [ case model.view of
                             BuildListView ->
@@ -72,6 +73,13 @@ view model =
                                 ]
                                 [ i "add_circle"
                                 , text "Add build..."
+                                ]
+                            , Menu.item
+                                [ Dialog.openOn "click"
+                                , padding
+                                ]
+                                [ i "help"
+                                , text "About"
                                 ]
                             ]
 
@@ -104,7 +112,10 @@ view model =
                     ]
                 ]
             ) ++
-                [ Snackbar.view model.snackbar |> Html.map Snackbar ]
+                [ aboutDialog model
+                , Snackbar.view model.snackbar |> Html.map Snackbar
+                ]
+
         }
         |> Material.Scheme.top
 
@@ -147,13 +158,21 @@ viewDefAndResult model index b =
 
         padding =
             css "padding-right" "18px"
+
+        liClick =
+            case b.result of
+                Just result ->
+                    Options.attribute
+                        <| Html.Events.onClick (OpenUrl result.url)
+                Nothing ->
+                    Options.nop
     in
         Lists.li
             [ Lists.withSubtitle
             , css "overflow" "inherit"
             ]
             [ Lists.content
-                [ Options.attribute <| Html.Events.onClick (BuildsViewMsg (BVBuildClicked b))
+                [ liClick
                 ]
                 [ Lists.avatarIcon
                     avatarIcon
@@ -200,20 +219,32 @@ viewBuildList model =
         if List.isEmpty model.builds then
             div
                 [ style
-                    [ displayFlex
-                    , alignItemsCenter
-                    , flexGrow
+                    [ position "absolute"
+                    , top0
+                    , bottom0
+                    , left0
+                    , right0
+                    , displayFlex
                     ]
                 ]
-                [ Options.styled p
-                    [ Typo.center
-                    , Typo.subhead
+                [ div
+                    [ style
+                        [ displayFlex
+                        , alignItemsCenter
+                        , flexGrow
+                        ]
                     ]
-                    [ text <|
-                        if model.dataFileNotFound then
-                            "Welcome to B-loot ! Start by adding builds..."
-                        else
-                            "No builds are monitored"
+                    [ Options.styled p
+                        [ Typo.center
+                        , Typo.subhead
+                        , css "width" "100%"
+                        ]
+                        [ text <|
+                            if model.dataFileNotFound then
+                                "Welcome to " ++ appTitle ++ " ! Add builds using the top-right menu."
+                            else
+                                "No builds are monitored. Add builds using the top-right menu."
+                        ]
                     ]
                 ]
         else
@@ -402,3 +433,42 @@ travisRows model =
             )
             []
     ]
+
+
+aboutDialog : Model -> Html Msg
+aboutDialog model =
+    Dialog.view
+        []
+        [ Dialog.title [] [ text "About" ]
+        , Dialog.content []
+            [ p []
+                [ text
+                    <| appTitle ++ " monitors builds from several C.I. servers."
+                ]
+            , p []
+                [ text "No more excuses for red builds !"
+                ]
+            , p
+                []
+                [ text "Open-Source, Hosted on "
+                , a
+                    [ href "#"
+                    , onWithOptions
+                        "click"
+                        { preventDefault = True
+                        , stopPropagation = True
+                        }
+                        (Json.succeed <| OpenUrl "http://todo")
+                    ]
+                    [ text "GitHub"
+                    ]
+                ]
+            ]
+        , Dialog.actions []
+            [ Button.render Mdl
+                [ 20 ]
+                model.mdl
+                [ Dialog.closeOn "click" ]
+                [ text "Dismiss" ]
+            ]
+        ]

@@ -126,25 +126,35 @@ update msg model =
                             , lastFetch = model.time
                             , previousStatus =
                                 -- store only red or green in the previous status
-                                case res of
-                                    Ok r ->
-                                        case r.status of
+                                case b.result of
+                                    Just prevResult ->
+                                        case prevResult.status of
                                             Green -> Green
                                             Red -> Red
-                                            _ -> b.previousStatus
-                                    Err e ->
+                                            _ -> prevResult.status
+                                    Nothing ->
                                         b.previousStatus
                         }
                     else
                         b
+
+                newBuilds =
+                    List.map mapper model.builds
             in
                 (
                     { model
-                        | builds =
-                            List.map mapper model.builds
+                        | builds = newBuilds
                     }
-                , Cmd.none
+                , newBuilds
+                    |> List.map desktopNotifIfBuildStateChanged
+                    |> Cmd.batch
                 )
+
+        OpenUrl u ->
+            ( model
+            , Ports.openURL u
+            )
+
 
         -- Boilerplate: Mdl action handler.
         Mdl msg_ ->
@@ -349,15 +359,6 @@ updateBuildsView bvm model =
             , Cmd.none
             )
 
-        BVBuildClicked build ->
-            case build.result of
-                Just result ->
-                    ( model
-                    , Ports.openURL result.url
-                    )
-                Nothing ->
-                    (model, Cmd.none)
-
         BVDeleteClicked build ->
             let
                 (m, c) =
@@ -406,6 +407,29 @@ mapTravisBuildData model f =
         { model
             | addBuildData = newAbd
         }
+
+
+desktopNotifIfBuildStateChanged : Build -> Cmd m
+desktopNotifIfBuildStateChanged build =
+    case build.result of
+        Just result ->
+            if build.previousStatus /= Unknown
+                && build.previousStatus /= result.status then
+                { title = result.name
+                , body =
+                    case result.status of
+                        Green -> "Build is now green"
+                        Red -> "Build has failed"
+                        _ -> ""
+                , isGreen =
+                    result.status == Green
+                }
+                |> Ports.desktopNotification
+            else
+                Cmd.none
+        Nothing ->
+            Cmd.none
+
 
 subscriptions : Model -> Sub Msg
 subscriptions model =

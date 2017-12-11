@@ -24,7 +24,6 @@ type ABVMsg
 type BVMsg
     = BVAddBuildClicked
     | BVEditClicked Build
-    | BVBuildClicked Build
     | BVDeleteClicked Build
 
 type Msg
@@ -39,3 +38,4 @@ type Msg
     | OnDataSaveError DataSaveError
     | OnDataSaveSuccess DataSaveSuccess
     | Snackbar (Snackbar.Msg Int)
+    | OpenUrl String
