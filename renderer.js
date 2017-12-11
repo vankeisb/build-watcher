@@ -7,6 +7,7 @@ var main = remote.require("./main");
 
 var Elm = require('./dist/app');
 var a = Elm.App.fullscreen();
+var path = require("path");
 
 function sendToMain(data) {
     ipcRenderer.send('renderer-msg', data)
@@ -23,22 +24,29 @@ a.ports.loadData.subscribe(function() {
     sendToMain({
         kind: "load-data"
     })
-})
+});
 
 a.ports.openURL.subscribe(function(url) {
     sendToMain({
         kind: "open-url",
         data: url
     })
-})
+});
 
 a.ports.desktopNotification.subscribe(function(data) {
-    const n = new Notification(data.title, {
-        body: data.body
-    })
+    let icon;
+    if (data.isGreen) {
+        icon = 'smile-green.png'
+    } else {
+        icon = 'smile-red.png'
+    }
+    const notif = {
+        title: data.title,
+        body: data.body,
+        icon: path.join(__dirname, 'assets', 'notif-icon', icon)
+    }
+    const n = new Notification(data.title, notif)
     n.onclick = () => {
-        debugger;
-        // TODO open browser with url ?
         sendToMain({
             kind: "notif-clicked"
         })

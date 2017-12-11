@@ -117,7 +117,7 @@ view model =
                 ]
 
         }
-        |> Material.Scheme.top
+        |> Material.Scheme.topWithScheme Color.BlueGrey Color.Blue
 
 
 
@@ -166,6 +166,17 @@ viewDefAndResult model index b =
                         <| Html.Events.onClick (OpenUrl result.url)
                 Nothing ->
                     Options.nop
+
+        (browseEnabledAttr, browseSelectAttr) =
+            case b.result of
+                Just result ->
+                    ( Options.nop
+                    , Menu.onSelect <| OpenUrl result.url
+                    )
+                Nothing ->
+                    ( Menu.disabled
+                    , Options.nop
+                    )
     in
         Lists.li
             [ Lists.withSubtitle
@@ -196,11 +207,19 @@ viewDefAndResult model index b =
                 , Menu.ripple
                 ]
                 [ Menu.item
+                    [ browseSelectAttr
+                    , browseEnabledAttr
+                    , padding
+                    ]
+                    [ i "launch"
+                    , text "Browse"
+                    ]
+                , Menu.item
                     [ Menu.onSelect <| BuildsViewMsg (BVEditClicked b)
                     , padding
                     ]
                     [ i "edit"
-                    , text "Edit build..."
+                    , text "Edit"
                     ]
                 , Menu.item
                     [ Menu.onSelect <| BuildsViewMsg (BVDeleteClicked b)
