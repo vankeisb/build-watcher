@@ -13,7 +13,7 @@ import Material.Icon as Icon
 import Material.Layout as Layout
 import Material.List as Lists
 import Material.Menu as Menu
-import Material.Options as Options exposing (css)
+import Material.Options as Options exposing (css, cs)
 import Material.Scheme
 import Material.Snackbar as Snackbar
 import Material.Tabs as Tabs
@@ -24,6 +24,8 @@ import Messages exposing (..)
 import Model exposing (..)
 import Style exposing (..)
 import Json.Decode as Json
+import Maybe.FlatMap exposing (flatMap)
+
 
 i name =
     Icon.view name [ css "width" "40px" ]
@@ -91,6 +93,13 @@ view model =
                                 [ i "help"
                                 , text "About"
                                 ]
+                            , Menu.item
+                                [ Menu.onSelect <| BuildsViewMsg BVQuitClicked
+                                , padding
+                                ]
+                                [ i "close"
+                                , text "Quit"
+                                ]
                             ]
 
                     AddBuildView ->
@@ -138,7 +147,6 @@ view model =
         |> Material.Scheme.topWithScheme Color.BlueGrey Color.Blue
 
 
-
 viewDefAndResult : Model -> Int -> Build -> Html Msg
 viewDefAndResult model index b =
     let
@@ -178,18 +186,13 @@ viewDefAndResult model index b =
             css "padding-right" "18px"
 
         liClick =
-            case b.result of
-                Just result ->
-                    Options.attribute
-                        <| Html.Events.onClick (OpenUrl result.url)
-                Nothing ->
-                    Options.nop
+            Options.onClick (BuildsViewMsg (BVBuildClicked b))
 
         (browseEnabledAttr, browseSelectAttr) =
             case b.result of
                 Just result ->
                     ( Options.nop
-                    , Menu.onSelect <| OpenUrl result.url
+                    , Menu.onSelect <| BuildsViewMsg (BVBuildClicked b)
                     )
                 Nothing ->
                     ( Menu.disabled
@@ -202,6 +205,10 @@ viewDefAndResult model index b =
             ]
             [ Lists.content
                 [ liClick
+                , b.fetchError
+                    |> Maybe.map (\_ -> Dialog.openOn "click")
+                    |> Maybe.withDefault Options.nop
+                , cs "bm-clickable"
                 ]
                 [ Lists.avatarIcon
                     avatarIcon
@@ -477,6 +484,7 @@ dialog model =
     case model.dialogKind of
         AboutDialog -> aboutDialog model
         PreferencesDialog -> preferencesDialog model
+        FetchErrorDialog build -> fetchErrorDialog model build
 
 
 aboutDialog : Model -> Html Msg
@@ -563,3 +571,33 @@ preferencesDialog model =
                 [ text "Done" ]
             ]
         ]
+
+
+fetchErrorDialog : Model -> Build -> Html Msg
+fetchErrorDialog model build =
+    case build.fetchError of
+        Just error ->
+            Dialog.view
+                []
+                [ Dialog.title [] [ text "Error" ]
+                , Dialog.content []
+                    [ p []
+                        [ text
+                            <| "An error occured while fetching build results for "
+                            ++ getBuildName build.def
+                        ]
+                    , code
+                        []
+                        [ text <| toString error
+                        ]
+                    ]
+                , Dialog.actions []
+                    [ Button.render Mdl
+                        [ 23 ]
+                        model.mdl
+                        [ Dialog.closeOn "click" ]
+                        [ text "Got it" ]
+                    ]
+                ]
+        Nothing ->
+            text ""

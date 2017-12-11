@@ -375,7 +375,7 @@ updateBuildsView bvm model =
     case bvm of
         BVNowReceived now ->
             handleTick model now
-        
+
         BVAddBuildClicked ->
             (
                 { model
@@ -445,6 +445,28 @@ updateBuildsView bvm model =
                     }
                 )
 
+        BVBuildClicked b ->
+            case b.result of
+                Just result ->
+                    ( model
+                    , Ports.openURL result.url
+                    )
+                Nothing ->
+                    case b.fetchError of
+                        Just err ->
+                            (
+                                { model
+                                    | dialogKind = FetchErrorDialog b
+                                }
+                            , Cmd.none
+                            )
+                        Nothing ->
+                            (model, Cmd.none)
+
+        BVQuitClicked ->
+            ( model
+            , Ports.quit ()
+            )
 
 updatePrefsAndSave : Model -> (Preferences -> Preferences) -> (Model, Cmd Msg)
 updatePrefsAndSave model f =

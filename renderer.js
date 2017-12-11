@@ -62,6 +62,12 @@ a.ports.desktopNotification.subscribe(function(data) {
     }
 })
 
+a.ports.quit.subscribe(function() {
+    sendToMain({
+        kind: "quit"
+    })
+})
+
 ipcRenderer.on('main-msg', (event, arg) => {
     if (arg.kind === 'data-loaded') {
         if (arg.success) {

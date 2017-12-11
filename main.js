@@ -93,7 +93,6 @@ app.on('ready', () => {
     tray.setContextMenu(contextMenu)
 
     const dataFileName = path.join(app.getPath("appData"),  appName, "build-watcher.json");
-    console.log("dataFileName", dataFileName);
 
     // Listen for async message from renderer process
     ipcMain.on('renderer-msg', (event, arg) => {
@@ -166,6 +165,8 @@ app.on('ready', () => {
             electron.shell.openExternal(arg.data);
         } else if (k === 'notif-clicked') {
             mainWindow.show();
+        } else if (k === 'quit') {
+            app.quit();
         }
     });
 })

@@ -105,7 +105,8 @@ type View
 type DialogKind
     = AboutDialog
     | PreferencesDialog
-
+    | FetchErrorDialog Build
+    
 
 type alias Model =
     { flags : Flags

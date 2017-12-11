@@ -44,3 +44,5 @@ type alias DesktopNotif =
     }
 
 port desktopNotification : DesktopNotif -> Cmd m
+
+port quit : () -> Cmd m
