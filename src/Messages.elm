@@ -25,6 +25,9 @@ type BVMsg
     = BVAddBuildClicked
     | BVEditClicked Build
     | BVDeleteClicked Build
+    | BVAboutClicked
+    | BVPrefsClicked
+    | BVPrefsToggleNotif
 
 type Msg
     = BuildsViewMsg BVMsg
@@ -34,7 +37,7 @@ type Msg
     | Mdl (Material.Msg Msg)
     | OnDataLoadError DataLoadError
     | OnDataLoadFileNotFound DataLoadFileNotFound
-    | OnDataLoadSuccess PersistedData
+    | OnDataLoadSuccess String
     | OnDataSaveError DataSaveError
     | OnDataSaveSuccess DataSaveSuccess
     | Snackbar (Snackbar.Msg Int)

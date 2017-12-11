@@ -3,7 +3,9 @@
 // All of the Node.js APIs are available in this process.
 
 var {ipcRenderer, remote} = require('electron');
-var main = remote.require("./main");
+var path = require("path");
+
+const dataFileName = path.join(remote.app.getPath("appData"), "build-watcher.json");
 
 const packageJson = require('./package.json');
 const appVersion = packageJson.version;
@@ -12,10 +14,10 @@ const appName = packageJson.name;
 var Elm = require('./dist/app');
 var a = Elm.App.fullscreen({
     appName : appName,
-    appVersion : appVersion
+    appVersion : appVersion,
+    dataFileName: dataFileName
 });
 
-var path = require("path");
 
 function sendToMain(data) {
     ipcRenderer.send('renderer-msg', data)

@@ -13,6 +13,7 @@ import Material.Snackbar as Snackbar
 type alias Flags =
     { appName : String
     , appVersion : String
+    , dataFileName : String
     }
 
 type BuildDef
@@ -101,6 +102,11 @@ type View
     | AddBuildView
 
 
+type DialogKind
+    = AboutDialog
+    | PreferencesDialog
+
+
 type alias Model =
     { flags : Flags
     , view : View
@@ -112,6 +118,8 @@ type alias Model =
     , loadError : Maybe String
     , snackbar : Snackbar.Model Int
     , dataFileNotFound : Bool
+    , dialogKind : DialogKind
+    , preferences : Preferences
     }
 
 
@@ -127,21 +135,51 @@ initialModel flags =
     , loadError = Nothing
     , snackbar = Snackbar.model
     , dataFileNotFound = False
+    , dialogKind = AboutDialog
+    , preferences = initialPreferences
+    }
+
+
+type alias Preferences =
+    { enableNotifications : Bool
+    }
+
+initialPreferences : Preferences
+initialPreferences =
+    { enableNotifications = True
     }
 
 
 type alias PersistedData =
     { bamboo : List Bamboo.BambooData
     , travis : List Travis.TravisData
+    , preferences : Preferences
     }
 
 
 persistedDataDecoder : Decoder PersistedData
 persistedDataDecoder =
-    map2 PersistedData
+    map3 PersistedData
         (field "bamboo" (list Bamboo.bambooDataDecoder))
         (field "travis" (list Travis.travisDataDecoder))
+        ( oneOf
+            [ (field "preferences" preferencesDecoder)
+            , succeed initialPreferences
+            ]
+        )
 
+
+preferencesDecoder : Decoder Preferences
+preferencesDecoder =
+    map Preferences
+        (field "enableNotifications" bool)
+
+
+encodePreferences : Preferences -> Value
+encodePreferences v =
+    JE.object
+        [ ( "enableNotifications", JE.bool v.enableNotifications )
+        ]
 
 encodePersistedData : PersistedData -> Value
 encodePersistedData v =
@@ -162,6 +200,7 @@ encodePersistedData v =
                 )
             )
           )
+        , ( "preferences", encodePreferences v.preferences )
         ]
 
 
@@ -174,8 +213,8 @@ getBuildName buildDef =
             d.repository ++ "/" ++ d.branch
 
 
-createPersistedData : List Build -> PersistedData
-createPersistedData builds =
+createPersistedData : Preferences -> List Build -> PersistedData
+createPersistedData prefs builds =
     { bamboo =
         builds
             |> List.filter (\b ->
@@ -200,4 +239,5 @@ createPersistedData builds =
                     TravisDef d -> d
                     _ -> Debug.crash "damnit"
             )
+    , preferences = prefs
     }

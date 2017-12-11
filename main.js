@@ -20,9 +20,9 @@ function createWindow () {
   mainWindow = new BrowserWindow({
       width: 400,
       minWidth: 400,
-      maxWidth : 600,
+      // maxWidth : 600,
       height: 800,
-      minHeight: 400
+      // minHeight: 400
   });
 
   // and load the index.html of the app.
@@ -137,25 +137,14 @@ app.on('ready', () => {
                             }
                         })
                     } else {
-                        var loadedData = null;
-                        try {
-                            loadedData = JSON.parse(data);
-                        } catch (e) {
-                            reply({
-                                kind: 'data-loaded',
-                                success: false,
-                                data: {
-                                    error : err
-                                }
-                            })
-                            return;
-                        }
                         // data loaded, notify elm app
+                        // and pass value as a string
+                        // to do our decoding using Elm
                         reply({
                             kind: 'data-loaded',
                             success: true,
                             loadedFromFile: true,
-                            data: loadedData
+                            data: data
                         })
                     }
                 });

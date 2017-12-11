@@ -3,7 +3,7 @@ port module Ports exposing (..)
 import Json.Decode exposing (..)
 import Model exposing (PersistedData, encodePersistedData)
 
-port onDataLoadSuccess : (PersistedData -> m) -> Sub m
+port onDataLoadSuccess : (String -> m) -> Sub m
 
 type alias DataLoadFileNotFound =
     { dataFileName : String

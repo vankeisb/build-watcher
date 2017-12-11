@@ -11,6 +11,7 @@ import Ports
 import Task exposing (Task)
 import Time exposing (Time)
 import Travis
+import Json.Decode as Json
 
 
 init : Flags -> (Model, Cmd Msg)
@@ -67,29 +68,40 @@ update msg model =
             }
             |> noCmd
 
-        OnDataLoadSuccess persistedData ->
+        OnDataLoadSuccess persistedDataStr ->
             let
-                bambooBuilds =
-                    persistedData.bamboo
-                        |> List.map BambooDef
-
-                travisBuilds =
-                    persistedData.travis
-                        |> List.map TravisDef
+                persistedDataRes =
+                    Json.decodeString persistedDataDecoder persistedDataStr
             in
-                (
-                    { model
-                        | builds =
-                            bambooBuilds
-                                |> List.append travisBuilds
-                                |> List.map defaultBuild
-                                |> List.sortBy (\b ->
-                                    getBuildName b.def
-                                )
-                        , loaded = True
-                    }
-                , Cmd.none
-                )
+                case persistedDataRes of
+                    Ok persistedData ->
+                        let
+                            bambooBuilds =
+                                persistedData.bamboo
+                                    |> List.map BambooDef
+
+                            travisBuilds =
+                                persistedData.travis
+                                    |> List.map TravisDef
+                        in
+                            { model
+                                | builds =
+                                    (bambooBuilds ++ travisBuilds)
+                                        |> List.map defaultBuild
+                                        |> List.sortBy (\b ->
+                                            getBuildName b.def
+                                        )
+                                , loaded = True
+                                , preferences = persistedData.preferences
+                            }
+                            |> noCmd
+                    Err e ->
+                        { model
+                            | loaded = True
+                            , loadError = Just e
+                        }
+                        |> noCmd
+
 
         OnDataSaveError e ->
             -- TODO
@@ -149,7 +161,7 @@ update msg model =
                         | builds = newBuilds
                     }
                 , newBuilds
-                    |> List.map desktopNotifIfBuildStateChanged
+                    |> List.map (desktopNotifIfBuildStateChanged model)
                     |> Cmd.batch
                 )
 
@@ -277,7 +289,7 @@ updateAddBuildView abvm model =
                                 ]
 
                 newPersistedData =
-                    createPersistedData newBuilds
+                    createPersistedData model.preferences newBuilds
 
                 toastMsg =
                     case abd.editing of
@@ -388,7 +400,7 @@ updateBuildsView bvm model =
                         |> List.filter (\b -> b.def /= build.def)
 
                 newPersistedData =
-                    createPersistedData newBuilds
+                    createPersistedData model.preferences newBuilds
             in
                 (
                     { m
@@ -399,6 +411,31 @@ updateBuildsView bvm model =
                     , c
                     ]
                 )
+
+        BVAboutClicked ->
+            ({ model | dialogKind = AboutDialog }, Cmd.none)
+
+        BVPrefsClicked ->
+            ({ model | dialogKind = PreferencesDialog }, Cmd.none)
+
+        BVPrefsToggleNotif ->
+            let
+                prefs =
+                    model.preferences
+                newPrefs =
+                    { prefs
+                        | enableNotifications =
+                            not prefs.enableNotifications
+                    }
+            in
+                (
+                    { model
+                        | preferences = newPrefs
+                    }
+                , createPersistedData newPrefs model.builds
+                    |> Ports.saveData
+                )
+
 
 mapBambooBuildData : Model -> (Bamboo.BambooData -> Bamboo.BambooData) -> Model
 mapBambooBuildData model f =
@@ -426,26 +463,29 @@ mapTravisBuildData model f =
         }
 
 
-desktopNotifIfBuildStateChanged : Build -> Cmd m
-desktopNotifIfBuildStateChanged build =
-    case build.result of
-        Just result ->
-            if build.previousStatus /= Unknown
-                && build.previousStatus /= result.status then
-                { title = result.name
-                , body =
-                    case result.status of
-                        Green -> "Build is now green"
-                        Red -> "Build has failed"
-                        _ -> ""
-                , isGreen =
-                    result.status == Green
-                }
-                |> Ports.desktopNotification
-            else
+desktopNotifIfBuildStateChanged : Model -> Build -> Cmd m
+desktopNotifIfBuildStateChanged model build =
+    if model.preferences.enableNotifications then
+        case build.result of
+            Just result ->
+                if build.previousStatus /= Unknown
+                    && build.previousStatus /= result.status then
+                    { title = result.name
+                    , body =
+                        case result.status of
+                            Green -> "Build is now green"
+                            Red -> "Build has failed"
+                            _ -> ""
+                    , isGreen =
+                        result.status == Green
+                    }
+                    |> Ports.desktopNotification
+                else
+                    Cmd.none
+            Nothing ->
                 Cmd.none
-        Nothing ->
-            Cmd.none
+    else
+        Cmd.none
 
 
 subscriptions : Model -> Sub Msg

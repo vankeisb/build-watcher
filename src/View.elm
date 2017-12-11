@@ -19,6 +19,7 @@ import Material.Snackbar as Snackbar
 import Material.Tabs as Tabs
 import Material.Textfield as Textfield
 import Material.Typography as Typo
+import Material.Toggles as Toggles
 import Messages exposing (..)
 import Model exposing (..)
 import Style exposing (..)
@@ -72,10 +73,19 @@ view model =
                                 , padding
                                 ]
                                 [ i "add_circle"
-                                , text "Add build..."
+                                , text "Add build"
                                 ]
                             , Menu.item
                                 [ Dialog.openOn "click"
+                                , Menu.onSelect <| BuildsViewMsg BVPrefsClicked
+                                , padding
+                                ]
+                                [ i "build"
+                                , text "Preferences"
+                                ]
+                            , Menu.item
+                                [ Dialog.openOn "click"
+                                , Menu.onSelect <| BuildsViewMsg BVAboutClicked
                                 , padding
                                 ]
                                 [ i "help"
@@ -98,7 +108,15 @@ view model =
                             []
                             [ text <| "Error loading your data : " ++ loadError
                             ]
+                        , p
+                            []
+                            [ text "Please fix (or delete) the data file at :"]
+                        , code
+                            []
+                            [ text model.flags.dataFileName
+                            ]
                         ]
+
                     Nothing ->
                         case model.view of
                             BuildListView ->
@@ -112,7 +130,7 @@ view model =
                     ]
                 ]
             ) ++
-                [ aboutDialog model
+                [ dialog model
                 , Snackbar.view model.snackbar |> Html.map Snackbar
                 ]
 
@@ -454,6 +472,13 @@ travisRows model =
     ]
 
 
+dialog : Model -> Html Msg
+dialog model =
+    case model.dialogKind of
+        AboutDialog -> aboutDialog model
+        PreferencesDialog -> preferencesDialog model
+
+
 aboutDialog : Model -> Html Msg
 aboutDialog model =
     Dialog.view
@@ -493,5 +518,34 @@ aboutDialog model =
                 model.mdl
                 [ Dialog.closeOn "click" ]
                 [ text "Dismiss" ]
+            ]
+        ]
+
+preferencesDialog : Model -> Html Msg
+preferencesDialog model =
+    Dialog.view
+        []
+        [ Dialog.title [] [ text "Preferences" ]
+        , Dialog.content []
+            [ growLeft
+                ( label
+                    []
+                    [ text "Enable notifications"
+                    ]
+                )
+                ( Toggles.switch Mdl [0] model.mdl
+                    [ Options.onToggle <| BuildsViewMsg BVPrefsToggleNotif
+                    , Toggles.ripple
+                    , Toggles.value model.preferences.enableNotifications
+                    ]
+                    []
+                )
+            ]
+        , Dialog.actions []
+            [ Button.render Mdl
+                [ 21 ]
+                model.mdl
+                [ Dialog.closeOn "click" ]
+                [ text "Done" ]
             ]
         ]
