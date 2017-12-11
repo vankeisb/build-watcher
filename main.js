@@ -9,6 +9,9 @@ const url = require('url')
 const Elm = require('./dist/app');
 const fs = require('fs');
 
+const packageJson = require('./package.json');
+const appName = packageJson.name;
+
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow
@@ -22,7 +25,8 @@ function createWindow () {
       minWidth: 400,
       maxWidth : 600,
       height: 800,
-      minHeight: 400
+      minHeight: 400,
+      icon: path.join(__dirname, 'assets/icons/png/64.png')
   });
 
   // and load the index.html of the app.
@@ -88,7 +92,7 @@ app.on('ready', () => {
     tray.setToolTip('build-watcher')
     tray.setContextMenu(contextMenu)
 
-    const dataFileName = path.join(app.getPath("appData"), "build-watcher.json");
+    const dataFileName = path.join(app.getPath("appData"),  appName, "build-watcher.json");
     console.log("dataFileName", dataFileName);
 
     // Listen for async message from renderer process

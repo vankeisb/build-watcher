@@ -5,7 +5,7 @@
 var {ipcRenderer, remote} = require('electron');
 var path = require("path");
 
-const dataFileName = path.join(remote.app.getPath("appData"), "build-watcher.json");
+const dataFileName = path.join(remote.app.getPath("appData"), "app-name", "build-watcher.json");
 
 const packageJson = require('./package.json');
 const appVersion = packageJson.version;
@@ -17,7 +17,6 @@ var a = Elm.App.fullscreen({
     appVersion : appVersion,
     dataFileName: dataFileName
 });
-
 
 function sendToMain(data) {
     ipcRenderer.send('renderer-msg', data)
