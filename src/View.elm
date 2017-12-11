@@ -462,11 +462,11 @@ aboutDialog model =
         , Dialog.content []
             [ p []
                 [ text
-                    <| model.flags.appName ++ " monitors builds from several C.I. servers."
+                    <| "version : " ++ model.flags.appVersion
                 ]
             , p []
                 [ text
-                    <| "version : " ++ model.flags.appVersion
+                    <| model.flags.appName ++ " monitors builds from several C.I. servers."
                 ]
             , p []
                 [ text "No more excuses for red builds !"
