@@ -6,7 +6,8 @@
   "scripts": {
     "build": "elm make --output dist/app.js src/*.elm",
     "start": "electron .",
-    "debug": "electron --inspect-brk=5858 ."
+    "debug": "electron --inspect-brk=5858 .",
+    "release" : "npm run build && electron-packager . --ignore=\"(elm-stuff)\""
   },
   "repository": "https://github.com/vankeisb/build-watcher",
   "keywords": [
