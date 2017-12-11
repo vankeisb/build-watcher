@@ -8,7 +8,8 @@
     "start": "npm run build && electron .",
     "debug": "electron --inspect-brk=5858 .",
     "release-mac": "npm run build && electron-packager . --overwrite --platform=darwin --arch=x64 --icon=assets/app-icon/mac/app.icns --prune=true --out=release-builds --ignore=\"(elm-stuff)\"",
-    "release-win": "npm run build && electron-packager . electron-tutorial-app --overwrite --asar=true --platform=win32 --arch=ia32 --icon=assets/app-icon/win/app.ico --prune=true --out=release-builds --version-string.CompanyName=CE --version-string.FileDescription=CE --version-string.ProductName=\"build-watcher\""
+    "release-win": "npm run build && electron-packager . build-watcher --overwrite --asar=true --platform=win32 --arch=ia32 --icon=assets/app-icon/win/app.ico --prune=true --out=release-builds --version-string.CompanyName=CE --version-string.FileDescription=CE --version-string.ProductName=\"build-watcher\"",
+    "release-linux": "npm run build && electron-packager . build-watcher --overwrite --asar=true --platform=linux --arch=x64 --icon=assets/app-icon/png/512.png --prune=true --out=release-builds"
   },
   "repository": "https://github.com/vankeisb/build-watcher",
   "keywords": [
