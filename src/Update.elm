@@ -84,17 +84,20 @@ update msg model =
                                 persistedData.travis
                                     |> List.map TravisDef
                         in
-                            { model
-                                | builds =
-                                    (bambooBuilds ++ travisBuilds)
-                                        |> List.map defaultBuild
-                                        |> List.sortBy (\b ->
-                                            getBuildName b.def
-                                        )
-                                , loaded = True
-                                , preferences = persistedData.preferences
-                            }
-                            |> noCmd
+                            (
+                                { model
+                                    | builds =
+                                        (bambooBuilds ++ travisBuilds)
+                                            |> List.map defaultBuild
+                                            |> List.sortBy (\b ->
+                                                getBuildName b.def
+                                            )
+                                    , loaded = True
+                                    , preferences = persistedData.preferences
+                                }
+                            , Time.now
+                                |> Task.perform (\now -> BuildsViewMsg <| BVNowReceived now)
+                            )
                     Err e ->
                         { model
                             | loaded = True
@@ -370,6 +373,9 @@ updateAddBuildView abvm model =
 updateBuildsView : BVMsg -> Model -> (Model, Cmd Msg)
 updateBuildsView bvm model =
     case bvm of
+        BVNowReceived now ->
+            handleTick model now
+        
         BVAddBuildClicked ->
             (
                 { model
@@ -419,22 +425,40 @@ updateBuildsView bvm model =
             ({ model | dialogKind = PreferencesDialog }, Cmd.none)
 
         BVPrefsToggleNotif ->
-            let
-                prefs =
-                    model.preferences
-                newPrefs =
-                    { prefs
+            updatePrefsAndSave
+                model
+                (\p ->
+                    { p
                         | enableNotifications =
-                            not prefs.enableNotifications
+                            not p.enableNotifications
                     }
-            in
-                (
-                    { model
-                        | preferences = newPrefs
-                    }
-                , createPersistedData newPrefs model.builds
-                    |> Ports.saveData
                 )
+
+        BVPrefsPollingChanged s ->
+            updatePrefsAndSave
+                model
+                (\p ->
+                    { p
+                        | pollingInterval =
+                            String.toInt s
+                                |> Result.withDefault 0
+                    }
+                )
+
+
+updatePrefsAndSave : Model -> (Preferences -> Preferences) -> (Model, Cmd Msg)
+updatePrefsAndSave model f =
+    let
+        newPrefs =
+            f model.preferences
+    in
+        (
+            { model
+                | preferences = newPrefs
+            }
+        , createPersistedData newPrefs model.builds
+            |> Ports.saveData
+        )
 
 
 mapBambooBuildData : Model -> (Bamboo.BambooData -> Bamboo.BambooData) -> Model
@@ -493,7 +517,10 @@ subscriptions model =
     Sub.batch <|
         [ case model.view of
             BuildListView ->
-                Time.every (Time.second * 5) Tick
+                if model.preferences.pollingInterval > 0 then
+                    Time.every (Time.second * (toFloat model.preferences.pollingInterval)) Tick
+                else
+                    Sub.none
             AddBuildView ->
                 Sub.none
         ] ++

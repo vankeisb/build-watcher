@@ -142,11 +142,13 @@ initialModel flags =
 
 type alias Preferences =
     { enableNotifications : Bool
+    , pollingInterval : Int
     }
 
 initialPreferences : Preferences
 initialPreferences =
     { enableNotifications = True
+    , pollingInterval = 30
     }
 
 
@@ -171,8 +173,9 @@ persistedDataDecoder =
 
 preferencesDecoder : Decoder Preferences
 preferencesDecoder =
-    map Preferences
+    map2 Preferences
         (field "enableNotifications" bool)
+        (field "pollingInterval" int)
 
 
 encodePreferences : Preferences -> Value

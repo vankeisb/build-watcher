@@ -28,6 +28,8 @@ type BVMsg
     | BVAboutClicked
     | BVPrefsClicked
     | BVPrefsToggleNotif
+    | BVPrefsPollingChanged String
+    | BVNowReceived Time
 
 type Msg
     = BuildsViewMsg BVMsg

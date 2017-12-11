@@ -540,6 +540,20 @@ preferencesDialog model =
                     ]
                     []
                 )
+            , Options.div
+                [ css "height" "18px"
+                ]
+                []
+            , Textfield.render Mdl [ 22 ] model.mdl
+                [ Textfield.label "Polling interval (seconds)"
+                , Textfield.floatingLabel
+                , Textfield.text_
+                , Textfield.value
+                    <| toString model.preferences.pollingInterval
+                , Options.onInput
+                    (\s -> BuildsViewMsg <| BVPrefsPollingChanged s)
+                ]
+                []
             ]
         , Dialog.actions []
             [ Button.render Mdl
