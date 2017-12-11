@@ -47,7 +47,7 @@ view model =
                     [ Icon.view "remove_red_eye"
                         [ css "padding-right" "12px"
                         ]
-                    , span [] [ text appTitle ]
+                    , span [] [ text <| model.flags.appName ]
                     , span []
                         [ case model.view of
                             BuildListView ->
@@ -260,7 +260,7 @@ viewBuildList model =
                         ]
                         [ text <|
                             if model.dataFileNotFound then
-                                "Welcome to " ++ appTitle ++ " ! Add builds using the top-right menu."
+                                "Welcome to " ++ model.flags.appName ++ " ! Add builds using the top-right menu."
                             else
                                 "No builds are monitored. Add builds using the top-right menu."
                         ]
@@ -462,7 +462,11 @@ aboutDialog model =
         , Dialog.content []
             [ p []
                 [ text
-                    <| appTitle ++ " monitors builds from several C.I. servers."
+                    <| model.flags.appName ++ " monitors builds from several C.I. servers."
+                ]
+            , p []
+                [ text
+                    <| "version : " ++ model.flags.appVersion
                 ]
             , p []
                 [ text "No more excuses for red builds !"

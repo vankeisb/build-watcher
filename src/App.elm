@@ -1,14 +1,14 @@
 module App exposing (..)
 
 import Html exposing (..)
+import Messages exposing (Msg)
+import Model exposing (Flags, Model)
 import Update
 import View
-import Model exposing (Model)
-import Messages exposing (Msg)
 
-main : Program Never Model Msg
+main : Program Flags Model Msg
 main =
-    Html.program
+    Html.programWithFlags
         { init = Update.init
         , view = View.view
         , update = Update.update

@@ -18,9 +18,9 @@ let willQuitApp = false;
 function createWindow () {
   // Create the browser window.
   mainWindow = new BrowserWindow({
-      width: 800,
-      // minWidth: 300,
-      // maxWidth : 500,
+      width: 400,
+      minWidth: 400,
+      maxWidth : 600,
       height: 800,
       minHeight: 400
   });
@@ -32,8 +32,6 @@ function createWindow () {
     slashes: true
   }))
 
-  // Open the DevTools.
-  mainWindow.webContents.openDevTools()
 
   // Emitted when the window is closed.
   mainWindow.on('close', (e) => {
@@ -173,6 +171,8 @@ app.on('ready', () => {
             }
         } else if (k === 'open-url') {
             electron.shell.openExternal(arg.data);
+        } else if (k === 'notif-clicked') {
+            mainWindow.show();
         }
     });
 })

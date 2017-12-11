@@ -5,8 +5,16 @@
 var {ipcRenderer, remote} = require('electron');
 var main = remote.require("./main");
 
+const packageJson = require('./package.json');
+const appVersion = packageJson.version;
+const appName = packageJson.name;
+
 var Elm = require('./dist/app');
-var a = Elm.App.fullscreen();
+var a = Elm.App.fullscreen({
+    appName : appName,
+    appVersion : appVersion
+});
+
 var path = require("path");
 
 function sendToMain(data) {

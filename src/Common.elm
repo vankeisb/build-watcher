@@ -20,8 +20,3 @@ type alias BuildResult =
 stringOrEmpty : Decoder String
 stringOrEmpty =
     oneOf [ string, succeed "" ]
-
-
-appTitle : String
-appTitle =
-    "build-watcher"

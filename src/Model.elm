@@ -10,6 +10,11 @@ import Json.Decode exposing (..)
 import Json.Encode as JE
 import Material.Snackbar as Snackbar
 
+type alias Flags =
+    { appName : String
+    , appVersion : String
+    }
+
 type BuildDef
     = BambooDef BambooData
     | TravisDef TravisData
@@ -97,7 +102,8 @@ type View
 
 
 type alias Model =
-    { view : View
+    { flags : Flags
+    , view : View
     , builds : List Build
     , addBuildData : AddBuildData
     , time : Time
@@ -109,9 +115,10 @@ type alias Model =
     }
 
 
-initialModel : Model
-initialModel =
-    { view = BuildListView
+initialModel : Flags -> Model
+initialModel flags =
+    { flags = flags
+    , view = BuildListView
     , builds = []
     , addBuildData = initialAddBuildData
     , time = -1
@@ -164,7 +171,7 @@ getBuildName buildDef =
         BambooDef d ->
             d.plan
         TravisDef d ->
-            d.branch ++ "@" ++ d.repository
+            d.repository ++ "/" ++ d.branch
 
 
 createPersistedData : List Build -> PersistedData

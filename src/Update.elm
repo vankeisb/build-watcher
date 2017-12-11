@@ -13,9 +13,9 @@ import Time exposing (Time)
 import Travis
 
 
-init : (Model, Cmd Msg)
-init =
-    ( initialModel
+init : Flags -> (Model, Cmd Msg)
+init flags =
+    ( initialModel (Debug.log "flags" flags)
     , Ports.loadData ()
     )
 
@@ -46,7 +46,7 @@ addToast s model =
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
-    case Debug.log "msg" msg of
+    case msg of
 
         Snackbar msg_ ->
             Snackbar.update msg_ model.snackbar
@@ -83,6 +83,9 @@ update msg model =
                             bambooBuilds
                                 |> List.append travisBuilds
                                 |> List.map defaultBuild
+                                |> List.sortBy (\b ->
+                                    getBuildName b.def
+                                )
                         , loaded = True
                     }
                 , Cmd.none
@@ -264,6 +267,9 @@ updateAddBuildView abvm model =
                                         defaultBuild newDef
                                     else
                                         b
+                                )
+                                |> List.sortBy (\b ->
+                                    getBuildName b.def
                                 )
                         Nothing ->
                             model.builds ++
