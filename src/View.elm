@@ -39,17 +39,25 @@ view model =
             [ Layout.row
                 [ css "padding-left" "16px"
                 ]
-                [ Layout.title []
-                    [ text "b-loot"
-                    , case model.view of
-                        BuildListView ->
-                            text ""
-                        AddBuildView ->
-                            case model.addBuildData.editing of
-                                Just build ->
-                                    text " / edit"
-                                Nothing ->
-                                    text " / add"
+                [ Layout.title
+                    [ css "align-items" "center"
+                    , css "display" "flex"
+                    ]
+                    [ Icon.view "remove_red_eye"
+                        [ css "padding-right" "12px"
+                        ]
+                    , span [] [ text "b-loot " ]
+                    , span []
+                        [ case model.view of
+                            BuildListView ->
+                                text ""
+                            AddBuildView ->
+                                case model.addBuildData.editing of
+                                    Just build ->
+                                        text " / edit"
+                                    Nothing ->
+                                        text " / add"
+                        ]
                     ]
                 , Layout.spacer
                 , case model.view of
@@ -64,12 +72,6 @@ view model =
                                 ]
                                 [ i "add_circle"
                                 , text "Add build..."
-                                ]
-                            , Menu.item
-                                [ padding
-                                ]
-                                [ i "help"
-                                , text "About"
                                 ]
                             ]
 
