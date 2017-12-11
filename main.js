@@ -81,16 +81,16 @@ app.on('ready', () => {
     const iconPath = path.join(__dirname, 'assets', 'tray-icon', iconName)
     tray = new Tray(iconPath)
     const contextMenu = Menu.buildFromTemplate([
-        { label: 'Show B-loot'
+        { label: 'Show Builds'
         , click : () => { mainWindow.show(); } },
         { label: 'Quit'
         , click : () => { app.quit();} }
         ]
     )
-    tray.setToolTip('B-loot build monitoring')
+    tray.setToolTip('build-watcher')
     tray.setContextMenu(contextMenu)
 
-    const dataFileName = path.join(app.getPath("appData"), "b-loot.json");
+    const dataFileName = path.join(app.getPath("appData"), "build-watcher.json");
     console.log("dataFileName", dataFileName);
 
     // Listen for async message from renderer process

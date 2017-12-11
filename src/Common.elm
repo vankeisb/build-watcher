@@ -22,5 +22,6 @@ stringOrEmpty =
     oneOf [ string, succeed "" ]
 
 
+appTitle : String
 appTitle =
-    "Build Watcher"
+    "build-watcher"

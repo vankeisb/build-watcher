@@ -1,5 +1,5 @@
 {
-  "name": "b-loot",
+  "name": "build-watcher",
   "version": "1.0.0",
   "description": "Multi-server build monitoring",
   "main": "main.js",
@@ -8,7 +8,7 @@
     "start": "electron .",
     "debug": "electron --inspect-brk=5858 ."
   },
-  "repository": "https://github.com/VANKEISB/b-loot",
+  "repository": "https://github.com/vankeisb/build-watcher",
   "keywords": [
     "Build",
     "Monitoring",
@@ -16,7 +16,7 @@
     "Travis",
     "Notifications"
   ],
-  "productName": "B-loot",
+  "productName": "build-watcher",
   "author": "remi@rvkb.com",
   "license": "CC0-1.0",
   "devDependencies": {

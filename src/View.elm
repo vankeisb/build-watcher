@@ -458,7 +458,7 @@ aboutDialog model =
                         { preventDefault = True
                         , stopPropagation = True
                         }
-                        (Json.succeed <| OpenUrl "http://todo")
+                        (Json.succeed <| OpenUrl "https://github.com/vankeisb/build-watcher")
                     ]
                     [ text "GitHub"
                     ]

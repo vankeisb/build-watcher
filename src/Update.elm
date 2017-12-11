@@ -237,13 +237,24 @@ updateAddBuildView abvm model =
 
         ABOkClicked ->
             let
+                sanitize buildData =
+                    { buildData
+                        | serverUrl =
+                            if String.endsWith "/" buildData.serverUrl then
+                                String.dropRight 1 buildData.serverUrl
+                            else
+                                buildData.serverUrl
+                    }
+
                 abd =
                     model.addBuildData
+
                 newDef =
                     if abd.tab == 0 then
-                        BambooDef abd.bamboo
+                        BambooDef (sanitize abd.bamboo)
                     else
-                        TravisDef abd.travis
+                        TravisDef (sanitize abd.travis)
+
                 newBuilds =
                     case abd.editing of
                         Just build ->
