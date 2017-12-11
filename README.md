@@ -7,7 +7,7 @@ Electron-based app for monitoring C.I. builds from various servers, in a single 
 * desktop notifications
 * multi server (Bamboo and Travis for now)
 
-# Build / Start
+# Development
 
     npm install
     npm run build
