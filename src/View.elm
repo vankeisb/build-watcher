@@ -71,13 +71,6 @@ view model =
                             , Menu.ripple
                             ]
                             [ Menu.item
-                                [ Menu.onSelect <| BuildsViewMsg BVAddBuildClicked
-                                , padding
-                                ]
-                                [ i "add_circle"
-                                , text "Add build"
-                                ]
-                            , Menu.item
                                 [ Dialog.openOn "click"
                                 , Menu.onSelect <| BuildsViewMsg BVPrefsClicked
                                 , padding
@@ -259,6 +252,23 @@ viewDefAndResult model index b =
 
 viewBuildList : Model -> List (Html Msg)
 viewBuildList model =
+    let
+        addButtonDiv =
+          div
+          []
+          [ Button.render Mdl [0] model.mdl
+              [ Button.fab
+              , Button.ripple
+              , Button.colored
+              , Options.onClick <| BuildsViewMsg BVAddBuildClicked
+              , css "position" "absolute"
+              , css "bottom" "10px"
+              , css "right" "10px"
+              ]
+              [ Icon.i "add"]
+          ]
+    in
+
     [
         if List.isEmpty model.builds then
             div
@@ -285,18 +295,23 @@ viewBuildList model =
                         ]
                         [ text <|
                             if model.dataFileNotFound then
-                                "Welcome to " ++ model.flags.appName ++ " ! Add builds using the top-right menu."
+                                "Welcome to " ++ model.flags.appName ++ " ! Add builds using the bottom-right button."
                             else
-                                "No builds are monitored. Add builds using the top-right menu."
+                                "No builds are monitored. Add builds using the bottom-right button."
                         ]
                     ]
+                , addButtonDiv
                 ]
         else
-            Lists.ul
+          div
+          []
+          [ Lists.ul
                 []
                 ( model.builds
                     |> List.indexedMap (viewDefAndResult model)
                 )
+          , addButtonDiv
+          ]
     ]
 
 
