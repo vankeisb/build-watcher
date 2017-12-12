@@ -262,9 +262,9 @@ viewBuildList model =
               , Button.ripple
               , Button.colored
               , Options.onClick <| BuildsViewMsg BVAddBuildClicked
-              , css "position" "absolute"
-              , css "bottom" "10px"
-              , css "right" "10px"
+              , css "position" "fixed"
+              , css "bottom" "24px"
+              , css "right" "24px"
               ]
               [ Icon.i "add"]
           ]
