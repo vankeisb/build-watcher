@@ -44,6 +44,13 @@ canSave d =
         && not (String.isEmpty d.plan)
 
 
+copy : BambooData -> BambooData
+copy d =
+    { d
+        | plan = d.plan ++ " - copy"
+    }
+
+
 bambooResponseDecoder : Decoder BambooResponse
 bambooResponseDecoder =
     map BambooResponse

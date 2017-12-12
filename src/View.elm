@@ -215,9 +215,9 @@ viewDefAndResult model index b =
                     wordWrap
                     [ text <|
                         case b.def of
-                            BambooDef d ->
+                            BambooDef _ d ->
                                 d.serverUrl
-                            TravisDef d ->
+                            TravisDef _ d ->
                                 d.serverUrl
                     ]
                 ]
@@ -239,6 +239,13 @@ viewDefAndResult model index b =
                     ]
                     [ i "edit"
                     , text "Edit"
+                    ]
+                , Menu.item
+                    [ Menu.onSelect <| BuildsViewMsg (BVCopyClicked b)
+                    , padding
+                    ]
+                    [ i "content_copy"
+                    , text "Duplicate"
                     ]
                 , Menu.item
                     [ Menu.onSelect <| BuildsViewMsg (BVDeleteClicked b)

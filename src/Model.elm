@@ -17,8 +17,8 @@ type alias Flags =
     }
 
 type BuildDef
-    = BambooDef BambooData
-    | TravisDef TravisData
+    = BambooDef Int BambooData
+    | TravisDef Int TravisData
 
 
 type alias Build =
@@ -89,13 +89,13 @@ editBuildData build =
         { bd
             | bamboo =
                 case build.def of
-                    BambooDef d ->
+                    BambooDef i d ->
                         d
                     _ ->
                         bd.bamboo
             , travis =
                 case build.def of
-                    TravisDef d ->
+                    TravisDef i d ->
                         d
                     _ ->
                         bd.travis
@@ -103,8 +103,8 @@ editBuildData build =
                 Just build
             , tab =
                 case build.def of
-                    BambooDef _ -> 0
-                    TravisDef _ -> 1
+                    BambooDef _ _ -> 0
+                    TravisDef _ _ -> 1
         }
 
 
@@ -132,6 +132,7 @@ type alias Model =
     , dataFileNotFound : Bool
     , dialogKind : DialogKind
     , preferences : Preferences
+    , counter : Int
     }
 
 
@@ -149,6 +150,7 @@ initialModel flags =
     , dataFileNotFound = False
     , dialogKind = AboutDialog
     , preferences = initialPreferences
+    , counter = 0
     }
 
 
@@ -222,11 +224,16 @@ encodePersistedData v =
 getBuildName : BuildDef -> String
 getBuildName buildDef =
     case buildDef of
-        BambooDef d ->
+        BambooDef _ d ->
             d.plan
-        TravisDef d ->
+        TravisDef _ d ->
             d.repository ++ "/" ++ d.branch
 
+getDefId : BuildDef -> Int
+getDefId buildDef =
+    case buildDef of
+        BambooDef i _ -> i
+        TravisDef i _ -> i
 
 createPersistedData : Preferences -> List Build -> PersistedData
 createPersistedData prefs builds =
@@ -234,24 +241,24 @@ createPersistedData prefs builds =
         builds
             |> List.filter (\b ->
                 case b.def of
-                    BambooDef d -> True
+                    BambooDef _ d -> True
                     _ -> False
             )
             |> List.map (\b ->
                 case b.def of
-                    BambooDef d -> d
+                    BambooDef _ d -> d
                     _ -> Debug.crash "damnit"
             )
     , travis =
         builds
             |> List.filter (\b ->
                 case b.def of
-                    TravisDef d -> True
+                    TravisDef _ d -> True
                     _ -> False
             )
             |> List.map (\b ->
                 case b.def of
-                    TravisDef d -> d
+                    TravisDef _ d -> d
                     _ -> Debug.crash "damnit"
             )
     , preferences = prefs

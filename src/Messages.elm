@@ -32,6 +32,7 @@ type BVMsg
     | BVNowReceived Time
     | BVBuildClicked Build
     | BVQuitClicked
+    | BVCopyClicked Build
 
 type Msg
     = BuildsViewMsg BVMsg

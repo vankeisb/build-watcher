@@ -39,6 +39,13 @@ canSave d =
         && not (String.isEmpty d.branch)
 
 
+copy : TravisData -> TravisData
+copy d =
+    { d
+        | branch = d.branch ++ " - copy"
+    }
+
+
 branchResultDecoder : Decoder BranchResult
 branchResultDecoder =
     map BranchResult

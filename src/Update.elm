@@ -78,11 +78,14 @@ update msg model =
                         let
                             bambooBuilds =
                                 persistedData.bamboo
-                                    |> List.map BambooDef
+                                    |> List.indexedMap BambooDef
+
+                            nbBamboo =
+                                List.length bambooBuilds
 
                             travisBuilds =
                                 persistedData.travis
-                                    |> List.map TravisDef
+                                    |> List.indexedMap (\i d -> TravisDef (i + nbBamboo) d)
                         in
                             (
                                 { model
@@ -94,9 +97,10 @@ update msg model =
                                             )
                                     , loaded = True
                                     , preferences = persistedData.preferences
+                                    , counter =
+                                        nbBamboo + (List.length travisBuilds)
                                 }
-                            , Time.now
-                                |> Task.perform (\now -> BuildsViewMsg <| BVNowReceived now)
+                            , fetchNow
                             )
                     Err e ->
                         { model
@@ -126,7 +130,7 @@ update msg model =
         FetchResult def res ->
             let
                 mapper b =
-                    if b.def == def then
+                    if getDefId b.def == getDefId def then
                         { b
                             | fetching = False
                             , fetchError =
@@ -188,13 +192,19 @@ fetch build time =
         }
     ,
         ( case build.def of
-            BambooDef bambooData ->
+            BambooDef _ bambooData ->
                 Bamboo.fetch bambooData
-            TravisDef travisData ->
+            TravisDef _ travisData ->
                 Travis.fetch travisData
         )
         |> Task.attempt (FetchResult build.def)
     )
+
+
+fetchNow : Cmd Msg
+fetchNow =
+    Time.now
+        |> Task.perform (\now -> BuildsViewMsg <| BVNowReceived now)
 
 
 handleTick : Model -> Time -> (Model, Cmd Msg)
@@ -267,52 +277,43 @@ updateAddBuildView abvm model =
                 abd =
                     model.addBuildData
 
+                newCounter =
+                    model.counter + 1
+
                 newDef =
                     if abd.tab == 0 then
-                        BambooDef (sanitize abd.bamboo)
+                        BambooDef newCounter (sanitize abd.bamboo)
                     else
-                        TravisDef (sanitize abd.travis)
+                        TravisDef newCounter (sanitize abd.travis)
 
                 newBuilds =
-                    case abd.editing of
+                    ( case abd.editing of
                         Just build ->
                             model.builds
                                 |> List.map (\b ->
-                                    if b.def == build.def then
+                                    if getDefId b.def == getDefId build.def then
                                         defaultBuild newDef
                                     else
                                         b
-                                )
-                                |> List.sortBy (\b ->
-                                    getBuildName b.def
                                 )
                         Nothing ->
                             model.builds ++
                                 [ defaultBuild newDef
                                 ]
-
-                newPersistedData =
-                    createPersistedData model.preferences newBuilds
-
-                toastMsg =
-                    case abd.editing of
+                    )
+                    |> List.sortBy (\b ->
+                        getBuildName b.def
+                    )
+            in
+                updateBuildsAndSave
+                    { model | counter = newCounter }
+                    newBuilds
+                    ( case abd.editing of
                         Just editedBuild ->
                             "Build " ++ (getBuildName newDef) ++ " updated"
                         Nothing ->
                             "Build added : " ++ (getBuildName newDef)
-                (m, c) =
-                    addToast toastMsg model
-            in
-                (
-                    { m
-                        | builds = newBuilds
-                        , view = BuildListView
-                    }
-                , Cmd.batch
-                    [ Ports.saveData newPersistedData
-                    , c
-                    ]
-                )
+                    )
 
         ABBambooServerUrlChanged s ->
             ( mapBambooBuildData
@@ -403,6 +404,7 @@ updateAddBuildView abvm model =
             )
 
 
+
 updateBuildsView : BVMsg -> Model -> (Model, Cmd Msg)
 updateBuildsView bvm model =
     case bvm of
@@ -450,6 +452,29 @@ updateBuildsView bvm model =
                     , c
                     ]
                 )
+
+        BVCopyClicked build ->
+            let
+                newCounter =
+                    model.counter + 1
+
+                newDef =
+                    case build.def of
+                        BambooDef _ d -> BambooDef newCounter (Bamboo.copy d)
+                        TravisDef _ d -> TravisDef newCounter (Travis.copy d)
+
+                newBuilds =
+                    model.builds
+                        |> List.append [ defaultBuild newDef ]
+                        |> List.sortBy (\b ->
+                            getBuildName b.def
+                        )
+            in
+                updateBuildsAndSave
+                    { model | counter = newCounter }
+                    newBuilds
+                    ( (getBuildName newDef) ++ " duplicated" )
+
 
         BVAboutClicked ->
             ({ model | dialogKind = AboutDialog }, Cmd.none)
@@ -500,6 +525,29 @@ updateBuildsView bvm model =
             ( model
             , Ports.quit ()
             )
+
+
+updateBuildsAndSave : Model -> List Build -> String -> (Model, Cmd Msg)
+updateBuildsAndSave model newBuilds toastText =
+    let
+        newPersistedData =
+            createPersistedData model.preferences newBuilds
+        (m, c) =
+            addToast toastText model
+    in
+        (
+            { m
+                | builds = newBuilds
+                , view = BuildListView
+            }
+        , Cmd.batch
+            [ Ports.saveData newPersistedData
+            , c
+            , fetchNow
+            ]
+        )
+
+
 
 updatePrefsAndSave : Model -> (Preferences -> Preferences) -> (Model, Cmd Msg)
 updatePrefsAndSave model f =
