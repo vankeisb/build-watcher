@@ -395,9 +395,20 @@ tfOpts rest =
     ] ++ rest
 
 
+withHelp : String -> Html Msg -> Html Msg
+withHelp txt html =
+    div
+        []
+        [ html
+        , Options.styled p
+            [ Typo.caption ]
+            [ text txt ]
+        ]
+
 bambooRows : Model -> List (Grid.Cell Msg)
 bambooRows model =
     [ formRow <|
+        withHelp "URL (and port if any) of the Bamboo server" <|
         Textfield.render Mdl [2] model.mdl
             ( tfOpts
                 [ Textfield.label "Server URL"
@@ -407,6 +418,7 @@ bambooRows model =
             )
             []
     , formRow <|
+        withHelp "Plan key, usually looks like FOO-BAR" <|
         Textfield.render Mdl [3] model.mdl
             ( tfOpts
                 [ Textfield.label "Plan"
@@ -416,6 +428,7 @@ bambooRows model =
             )
             []
     , formRow <|
+        withHelp "Bamboo username (if auth needed)" <|
         Textfield.render Mdl [4] model.mdl
             ( tfOpts
                 [ Textfield.label "Username"
@@ -425,6 +438,7 @@ bambooRows model =
             )
             []
     , formRow <|
+        withHelp "Bamboo password (if auth needed)" <|
         Textfield.render Mdl [5] model.mdl
             ( tfOpts
                 [ Textfield.label "Password"
@@ -439,6 +453,7 @@ bambooRows model =
 travisRows : Model -> List (Grid.Cell Msg)
 travisRows model =
     [ formRow <|
+        withHelp "URL of the Travis server (e.g. https://travis.org)" <|
         Textfield.render Mdl [6] model.mdl
             ( tfOpts
                 [ Textfield.label "Server URL"
@@ -448,6 +463,7 @@ travisRows model =
             )
             []
     , formRow <|
+        withHelp "The repository (e.g. rails/rails)" <|
         Textfield.render Mdl [7] model.mdl
             ( tfOpts
                 [ Textfield.label "Repository"
@@ -457,6 +473,7 @@ travisRows model =
             )
             []
     , formRow <|
+        withHelp "Branch to watch (e.g. master)" <|
         Textfield.render Mdl [8] model.mdl
             ( tfOpts
                 [ Textfield.label "Branch"
@@ -468,6 +485,7 @@ travisRows model =
             )
             []
     , formRow <|
+        withHelp "Travis token if needed (as provided by the travis cmd line)" <|
         Textfield.render Mdl [9] model.mdl
             ( tfOpts
                 [ Textfield.label "Token"
