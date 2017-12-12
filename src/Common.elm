@@ -20,3 +20,11 @@ type alias BuildResult =
 stringOrEmpty : Decoder String
 stringOrEmpty =
     oneOf [ string, succeed "" ]
+
+
+validateRequired : String -> Maybe String
+validateRequired s =
+    if String.isEmpty s then
+        Just "This field is required"
+    else
+        Nothing

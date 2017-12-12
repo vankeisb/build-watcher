@@ -1,7 +1,8 @@
 module Update exposing (..)
 
 import Bamboo
-import Common exposing (Status(Green), Status(Red), Status(Unknown))
+import Common exposing (Status(Green), Status(Red), Status(Unknown), validateRequired)
+import Json.Decode as Json
 import Material
 import Material.Helpers exposing (map1st, map2nd)
 import Material.Snackbar as Snackbar
@@ -11,7 +12,6 @@ import Ports
 import Task exposing (Task)
 import Time exposing (Time)
 import Travis
-import Json.Decode as Json
 
 
 init : Flags -> (Model, Cmd Msg)
@@ -317,58 +317,91 @@ updateAddBuildView abvm model =
         ABBambooServerUrlChanged s ->
             ( mapBambooBuildData
                 model
-                (\bbd -> { bbd | serverUrl = s } )
+                (\(b, be) ->
+                    ( { b | serverUrl = s }
+                    , { be | serverUrl = validateRequired s }
+                    )
+                )
             , Cmd.none
             )
 
         ABBambooUsernameChanged s ->
             ( mapBambooBuildData
                 model
-                (\bbd -> { bbd | username = s } )
+                (\(b, be) ->
+                    ( { b | username = s }
+                    , be
+                    )
+                )
             , Cmd.none
             )
 
         ABBambooPasswordChanged s ->
             ( mapBambooBuildData
                 model
-                (\bbd -> { bbd | password = s } )
+                (\(b, be) ->
+                    ( { b | password = s }
+                    , be
+                    )
+                )
             , Cmd.none
             )
 
         ABBambooPlanChanged s ->
             ( mapBambooBuildData
                 model
-                (\bbd -> { bbd | plan = s } )
+                (\(b, be) ->
+                    ( { b | plan = s }
+                    , { be | plan = validateRequired s }
+                    )
+                )
             , Cmd.none
             )
 
         ABTravisServerUrlChanged s ->
             ( mapTravisBuildData
                 model
-                (\d -> { d | serverUrl = s } )
+                (\(t, te) ->
+                    ( { t | serverUrl = s }
+                    , { te | serverUrl = validateRequired s }
+                    )
+                )
             , Cmd.none
             )
 
         ABTravisTokenChanged s ->
             ( mapTravisBuildData
                 model
-                (\d -> { d | token = s } )
+                (\(t, te) ->
+                    ( { t | token = s }
+                    , te
+                    )
+                )
             , Cmd.none
             )
 
         ABTravisRepoChanged s ->
             ( mapTravisBuildData
                 model
-                (\d -> { d | repository = s } )
+                (\(t, te) ->
+                    ( { t | repository = s }
+                    , { te | repository = validateRequired s }
+                    )
+                )
             , Cmd.none
             )
 
         ABTravisBranchChanged s ->
             ( mapTravisBuildData
                 model
-                (\d -> { d | branch = s } )
+                (\(t, te) ->
+                    ( { t | branch = s }
+                    , { te | branch = validateRequired s }
+                    )
+                )
             , Cmd.none
             )
+
 
 updateBuildsView : BVMsg -> Model -> (Model, Cmd Msg)
 updateBuildsView bvm model =
@@ -483,29 +516,38 @@ updatePrefsAndSave model f =
         )
 
 
-mapBambooBuildData : Model -> (Bamboo.BambooData -> Bamboo.BambooData) -> Model
+mapBambooBuildData : Model -> ((Bamboo.BambooData, Bamboo.BambooValidationErrors) -> (Bamboo.BambooData, Bamboo.BambooValidationErrors)) -> Model
 mapBambooBuildData model f =
     let
         abd =
             model.addBuildData
-        newAbd =
-            { abd | bamboo = f abd.bamboo }
+
+        (bamboo, bambooErrors) =
+            f (abd.bamboo, abd.bambooErrors)
     in
         { model
-            | addBuildData = newAbd
+            | addBuildData =
+                { abd
+                    | bamboo = bamboo
+                    , bambooErrors = bambooErrors
+                }
         }
 
 
-mapTravisBuildData : Model -> (Travis.TravisData -> Travis.TravisData) -> Model
+mapTravisBuildData : Model -> ((Travis.TravisData, Travis.TravisValidationErrors) -> (Travis.TravisData, Travis.TravisValidationErrors)) -> Model
 mapTravisBuildData model f =
     let
         abd =
             model.addBuildData
-        newAbd =
-            { abd | travis = f abd.travis }
+        (travis, travisErrors) =
+            f (abd.travis, abd.travisErrors)
     in
         { model
-            | addBuildData = newAbd
+            | addBuildData =
+                { abd
+                    | travis = travis
+                    , travisErrors = travisErrors
+                }
         }
 
 

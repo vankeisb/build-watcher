@@ -32,6 +32,18 @@ type alias BambooResult =
     }
 
 
+type alias BambooValidationErrors =
+    { serverUrl : Maybe String
+    , plan : Maybe String
+    }
+
+
+canSave : BambooData -> Bool
+canSave d =
+    not (String.isEmpty d.serverUrl)
+        && not (String.isEmpty d.plan)
+
+
 bambooResponseDecoder : Decoder BambooResponse
 bambooResponseDecoder =
     map BambooResponse
@@ -98,7 +110,6 @@ fetch d =
                 ++ "&os_password="
                 ++ encodeUri d.password
                 ++ "&"
-
         u =
             d.serverUrl
                 ++ "/rest/api/latest/result/"

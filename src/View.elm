@@ -24,7 +24,8 @@ import Messages exposing (..)
 import Model exposing (..)
 import Style exposing (..)
 import Json.Decode as Json
-import Maybe.FlatMap exposing (flatMap)
+import Bamboo
+import Travis
 
 
 i name =
@@ -348,11 +349,15 @@ viewAddTabs model =
 viewAddBuild : Model -> List (Html Msg)
 viewAddBuild model =
     let
-        rows =
+        (rows, canSave) =
             if model.addBuildData.tab == 0 then
-                bambooRows model
+                ( bambooRows model
+                , Bamboo.canSave model.addBuildData.bamboo
+                )
             else
-                travisRows model
+                ( travisRows model
+                , Travis.canSave model.addBuildData.travis
+                )
     in
         [ viewAddTabs model
         , Grid.grid
@@ -366,6 +371,7 @@ viewAddBuild model =
                         , Button.ripple
                         , Options.onClick <| AddBuildViewMsg ABOkClicked
                         , css "width" "100%"
+                        , Button.disabled |> Options.when (not canSave)
                         ]
                         [ text <|
                             case model.addBuildData.editing of
@@ -420,96 +426,119 @@ withHelp txt html =
             [ text txt ]
         ]
 
+textfieldError maybeString =
+    maybeString
+        |> Maybe.map Textfield.error
+        |> Maybe.withDefault Options.nop
+
+
 bambooRows : Model -> List (Grid.Cell Msg)
 bambooRows model =
-    [ formRow <|
-        withHelp "URL (and port if any) of the Bamboo server" <|
-        Textfield.render Mdl [2] model.mdl
-            ( tfOpts
-                [ Textfield.label "Server URL"
-                , Textfield.value model.addBuildData.bamboo.serverUrl
-                , Options.onInput <| onInputAbv ABBambooServerUrlChanged
-                ]
-            )
-            []
-    , formRow <|
-        withHelp "Plan key, usually looks like FOO-BAR" <|
-        Textfield.render Mdl [3] model.mdl
-            ( tfOpts
-                [ Textfield.label "Plan"
-                , Textfield.value model.addBuildData.bamboo.plan
-                , Options.onInput <| onInputAbv ABBambooPlanChanged
-                ]
-            )
-            []
-    , formRow <|
-        withHelp "Bamboo username (if auth needed)" <|
-        Textfield.render Mdl [4] model.mdl
-            ( tfOpts
-                [ Textfield.label "Username"
-                , Textfield.value model.addBuildData.bamboo.username
-                , Options.onInput <| onInputAbv ABBambooUsernameChanged
-                ]
-            )
-            []
-    , formRow <|
-        withHelp "Bamboo password (if auth needed)" <|
-        Textfield.render Mdl [5] model.mdl
-            ( tfOpts
-                [ Textfield.label "Password"
-                , Textfield.value model.addBuildData.bamboo.password
-                , Options.onInput <| onInputAbv ABBambooPasswordChanged
-                ]
-            )
-            []
-    ]
+    let
+        bamboo =
+            model.addBuildData.bamboo
+        bambooErrors =
+            model.addBuildData.bambooErrors
+    in
+        [ formRow <|
+            withHelp "URL (and port if any) of the Bamboo server" <|
+            Textfield.render Mdl [2] model.mdl
+                ( tfOpts
+                    [ Textfield.label "Server URL"
+                    , Textfield.value bamboo.serverUrl
+                    , Options.onInput <| onInputAbv ABBambooServerUrlChanged
+                    , textfieldError bambooErrors.serverUrl
+                    ]
+                )
+                []
+        , formRow <|
+            withHelp "Plan key, usually looks like FOO-BAR" <|
+            Textfield.render Mdl [3] model.mdl
+                ( tfOpts
+                    [ Textfield.label "Plan"
+                    , Textfield.value bamboo.plan
+                    , Options.onInput <| onInputAbv ABBambooPlanChanged
+                    , textfieldError bambooErrors.plan
+                    ]
+                )
+                []
+        , formRow <|
+            withHelp "Bamboo username (if auth needed)" <|
+            Textfield.render Mdl [4] model.mdl
+                ( tfOpts
+                    [ Textfield.label "Username"
+                    , Textfield.value bamboo.username
+                    , Options.onInput <| onInputAbv ABBambooUsernameChanged
+                    ]
+                )
+                []
+        , formRow <|
+            withHelp "Bamboo password (if auth needed)" <|
+            Textfield.render Mdl [5] model.mdl
+                ( tfOpts
+                    [ Textfield.label "Password"
+                    , Textfield.value bamboo.password
+                    , Options.onInput <| onInputAbv ABBambooPasswordChanged
+                    ]
+                )
+                []
+        ]
 
 
 travisRows : Model -> List (Grid.Cell Msg)
 travisRows model =
-    [ formRow <|
-        withHelp "URL of the Travis server (e.g. https://travis.org)" <|
-        Textfield.render Mdl [6] model.mdl
-            ( tfOpts
-                [ Textfield.label "Server URL"
-                , Textfield.value model.addBuildData.travis.serverUrl
-                , Options.onInput <| onInputAbv ABTravisServerUrlChanged
-                ]
-            )
-            []
-    , formRow <|
-        withHelp "The repository (e.g. rails/rails)" <|
-        Textfield.render Mdl [7] model.mdl
-            ( tfOpts
-                [ Textfield.label "Repository"
-                , Textfield.value model.addBuildData.travis.repository
-                , Options.onInput <| onInputAbv ABTravisRepoChanged
-                ]
-            )
-            []
-    , formRow <|
-        withHelp "Branch to watch (e.g. master)" <|
-        Textfield.render Mdl [8] model.mdl
-            ( tfOpts
-                [ Textfield.label "Branch"
-                , Textfield.floatingLabel
-                , Textfield.text_
-                , Textfield.value model.addBuildData.travis.branch
-                , Options.onInput <| onInputAbv ABTravisBranchChanged
-                ]
-            )
-            []
-    , formRow <|
-        withHelp "Travis token if needed (as provided by the travis cmd line)" <|
-        Textfield.render Mdl [9] model.mdl
-            ( tfOpts
-                [ Textfield.label "Token"
-                , Textfield.value model.addBuildData.travis.token
-                , Options.onInput <| onInputAbv ABTravisTokenChanged
-                ]
-            )
-            []
-    ]
+    let
+        travis =
+            model.addBuildData.travis
+        travisErrors =
+            model.addBuildData.travisErrors
+    in
+        [ formRow <|
+            withHelp "URL of the Travis server (e.g. https://travis.org)" <|
+            Textfield.render Mdl [6] model.mdl
+                ( tfOpts
+                    [ Textfield.label "Server URL"
+                    , Textfield.value travis.serverUrl
+                    , Options.onInput <| onInputAbv ABTravisServerUrlChanged
+                    , textfieldError travisErrors.serverUrl
+                    ]
+                )
+                []
+        , formRow <|
+            withHelp "The repository (e.g. rails/rails)" <|
+            Textfield.render Mdl [7] model.mdl
+                ( tfOpts
+                    [ Textfield.label "Repository"
+                    , Textfield.value travis.repository
+                    , Options.onInput <| onInputAbv ABTravisRepoChanged
+                    , textfieldError travisErrors.repository
+                    ]
+                )
+                []
+        , formRow <|
+            withHelp "Branch to watch (e.g. master)" <|
+            Textfield.render Mdl [8] model.mdl
+                ( tfOpts
+                    [ Textfield.label "Branch"
+                    , Textfield.floatingLabel
+                    , Textfield.text_
+                    , Textfield.value travis.branch
+                    , Options.onInput <| onInputAbv ABTravisBranchChanged
+                    , textfieldError travisErrors.branch
+                    ]
+                )
+                []
+        , formRow <|
+            withHelp "Travis token if needed (as provided by the travis cmd line)" <|
+            Textfield.render Mdl [9] model.mdl
+                ( tfOpts
+                    [ Textfield.label "Token"
+                    , Textfield.value travis.token
+                    , Options.onInput <| onInputAbv ABTravisTokenChanged
+                    ]
+                )
+                []
+        ]
 
 
 dialog : Model -> Html Msg

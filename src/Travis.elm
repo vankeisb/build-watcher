@@ -25,6 +25,20 @@ type alias LastBuild =
     }
 
 
+type alias TravisValidationErrors =
+    { serverUrl : Maybe String
+    , repository : Maybe String
+    , branch : Maybe String
+    }
+
+
+canSave : TravisData -> Bool
+canSave d =
+    not (String.isEmpty d.serverUrl)
+        && not (String.isEmpty d.repository)
+        && not (String.isEmpty d.branch)
+
+
 branchResultDecoder : Decoder BranchResult
 branchResultDecoder =
     map BranchResult

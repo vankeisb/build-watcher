@@ -47,6 +47,8 @@ type alias AddBuildData =
     , travis : Travis.TravisData
     , tab : Int
     , editing : Maybe Build
+    , bambooErrors : Bamboo.BambooValidationErrors
+    , travisErrors : Travis.TravisValidationErrors
     }
 
 
@@ -66,6 +68,15 @@ initialAddBuildData =
         }
     , tab = 0
     , editing = Nothing
+    , bambooErrors =
+        { serverUrl = Nothing
+        , plan = Nothing
+        }
+    , travisErrors =
+        { serverUrl = Nothing
+        , repository = Nothing
+        , branch = Nothing
+        }
     }
 
 
@@ -106,7 +117,7 @@ type DialogKind
     = AboutDialog
     | PreferencesDialog
     | FetchErrorDialog Build
-    
+
 
 type alias Model =
     { flags : Flags
