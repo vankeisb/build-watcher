@@ -9,6 +9,9 @@ const url = require('url')
 const Elm = require('./dist/app');
 const fs = require('fs');
 
+const packageJson = require('./package.json');
+const appName = packageJson.name;
+
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow
@@ -18,11 +21,12 @@ let willQuitApp = false;
 function createWindow () {
   // Create the browser window.
   mainWindow = new BrowserWindow({
-      width: 800,
-      // minWidth: 300,
-      // maxWidth : 500,
+      width: 400,
+      minWidth: 400,
+      maxWidth : 600,
       height: 800,
-      minHeight: 400
+      minHeight: 400,
+      icon: path.join(__dirname, 'assets/icons/png/64.png')
   });
 
   // and load the index.html of the app.
@@ -32,8 +36,6 @@ function createWindow () {
     slashes: true
   }))
 
-  // Open the DevTools.
-  mainWindow.webContents.openDevTools()
 
   // Emitted when the window is closed.
   mainWindow.on('close', (e) => {
@@ -81,17 +83,16 @@ app.on('ready', () => {
     const iconPath = path.join(__dirname, 'assets', 'tray-icon', iconName)
     tray = new Tray(iconPath)
     const contextMenu = Menu.buildFromTemplate([
-        { label: 'Show B-loot'
+        { label: 'Show Builds'
         , click : () => { mainWindow.show(); } },
         { label: 'Quit'
         , click : () => { app.quit();} }
         ]
     )
-    tray.setToolTip('B-loot build monitoring')
+    tray.setToolTip('build-watcher')
     tray.setContextMenu(contextMenu)
 
-    const dataFileName = path.join(app.getPath("appData"), "b-loot.json");
-    console.log("dataFileName", dataFileName);
+    const dataFileName = path.join(app.getPath("appData"),  appName, "build-watcher.json");
 
     // Listen for async message from renderer process
     ipcMain.on('renderer-msg', (event, arg) => {
@@ -139,25 +140,14 @@ app.on('ready', () => {
                             }
                         })
                     } else {
-                        var loadedData = null;
-                        try {
-                            loadedData = JSON.parse(data);
-                        } catch (e) {
-                            reply({
-                                kind: 'data-loaded',
-                                success: false,
-                                data: {
-                                    error : err
-                                }
-                            })
-                            return;
-                        }
                         // data loaded, notify elm app
+                        // and pass value as a string
+                        // to do our decoding using Elm
                         reply({
                             kind: 'data-loaded',
                             success: true,
                             loadedFromFile: true,
-                            data: loadedData
+                            data: data
                         })
                     }
                 });
@@ -173,6 +163,33 @@ app.on('ready', () => {
             }
         } else if (k === 'open-url') {
             electron.shell.openExternal(arg.data);
+        } else if (k === 'notif-clicked') {
+            mainWindow.show();
+        } else if (k === 'quit') {
+            app.quit();
         }
     });
+
+    // add menu for ctrl-c to work...
+    var template = [{
+        label: "Application",
+        submenu: [
+            { label: "About Application", selector: "orderFrontStandardAboutPanel:" },
+            { type: "separator" },
+            { label: "Quit", accelerator: "Command+Q", click: function() { app.quit(); }}
+        ]}, {
+        label: "Edit",
+        submenu: [
+            { label: "Undo", accelerator: "CmdOrCtrl+Z", selector: "undo:" },
+            { label: "Redo", accelerator: "Shift+CmdOrCtrl+Z", selector: "redo:" },
+            { type: "separator" },
+            { label: "Cut", accelerator: "CmdOrCtrl+X", selector: "cut:" },
+            { label: "Copy", accelerator: "CmdOrCtrl+C", selector: "copy:" },
+            { label: "Paste", accelerator: "CmdOrCtrl+V", selector: "paste:" },
+            { label: "Select All", accelerator: "CmdOrCtrl+A", selector: "selectAll:" }
+        ]}
+    ];
+
+    Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+
 })

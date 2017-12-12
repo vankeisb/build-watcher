@@ -1,7 +1,8 @@
 module Update exposing (..)
 
 import Bamboo
-import Common exposing (Status(Green), Status(Red), Status(Unknown))
+import Common exposing (Status(Green), Status(Red), Status(Unknown), validateRequired)
+import Json.Decode as Json
 import Material
 import Material.Helpers exposing (map1st, map2nd)
 import Material.Snackbar as Snackbar
@@ -13,9 +14,9 @@ import Time exposing (Time)
 import Travis
 
 
-init : (Model, Cmd Msg)
-init =
-    ( initialModel
+init : Flags -> (Model, Cmd Msg)
+init flags =
+    ( initialModel (Debug.log "flags" flags)
     , Ports.loadData ()
     )
 
@@ -46,7 +47,7 @@ addToast s model =
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
-    case Debug.log "msg" msg of
+    case msg of
 
         Snackbar msg_ ->
             Snackbar.update msg_ model.snackbar
@@ -67,26 +68,47 @@ update msg model =
             }
             |> noCmd
 
-        OnDataLoadSuccess persistedData ->
+        OnDataLoadSuccess persistedDataStr ->
             let
-                bambooBuilds =
-                    persistedData.bamboo
-                        |> List.map BambooDef
-
-                travisBuilds =
-                    persistedData.travis
-                        |> List.map TravisDef
+                persistedDataRes =
+                    Json.decodeString persistedDataDecoder persistedDataStr
             in
-                (
-                    { model
-                        | builds =
-                            bambooBuilds
-                                |> List.append travisBuilds
-                                |> List.map defaultBuild
-                        , loaded = True
-                    }
-                , Cmd.none
-                )
+                case persistedDataRes of
+                    Ok persistedData ->
+                        let
+                            bambooBuilds =
+                                persistedData.bamboo
+                                    |> List.indexedMap BambooDef
+
+                            nbBamboo =
+                                List.length bambooBuilds
+
+                            travisBuilds =
+                                persistedData.travis
+                                    |> List.indexedMap (\i d -> TravisDef (i + nbBamboo) d)
+                        in
+                            (
+                                { model
+                                    | builds =
+                                        (bambooBuilds ++ travisBuilds)
+                                            |> List.map defaultBuild
+                                            |> List.sortBy (\b ->
+                                                getBuildName b.def
+                                            )
+                                    , loaded = True
+                                    , preferences = persistedData.preferences
+                                    , counter =
+                                        nbBamboo + (List.length travisBuilds)
+                                }
+                            , fetchNow
+                            )
+                    Err e ->
+                        { model
+                            | loaded = True
+                            , loadError = Just e
+                        }
+                        |> noCmd
+
 
         OnDataSaveError e ->
             -- TODO
@@ -108,7 +130,7 @@ update msg model =
         FetchResult def res ->
             let
                 mapper b =
-                    if b.def == def then
+                    if getDefId b.def == getDefId def then
                         { b
                             | fetching = False
                             , fetchError =
@@ -146,7 +168,7 @@ update msg model =
                         | builds = newBuilds
                     }
                 , newBuilds
-                    |> List.map desktopNotifIfBuildStateChanged
+                    |> List.map (desktopNotifIfBuildStateChanged model)
                     |> Cmd.batch
                 )
 
@@ -170,13 +192,19 @@ fetch build time =
         }
     ,
         ( case build.def of
-            BambooDef bambooData ->
+            BambooDef _ bambooData ->
                 Bamboo.fetch bambooData
-            TravisDef travisData ->
+            TravisDef _ travisData ->
                 Travis.fetch travisData
         )
         |> Task.attempt (FetchResult build.def)
     )
+
+
+fetchNow : Cmd Msg
+fetchNow =
+    Time.now
+        |> Task.perform (\now -> BuildsViewMsg <| BVNowReceived now)
 
 
 handleTick : Model -> Time -> (Model, Cmd Msg)
@@ -237,19 +265,33 @@ updateAddBuildView abvm model =
 
         ABOkClicked ->
             let
+                sanitize buildData =
+                    { buildData
+                        | serverUrl =
+                            if String.endsWith "/" buildData.serverUrl then
+                                String.dropRight 1 buildData.serverUrl
+                            else
+                                buildData.serverUrl
+                    }
+
                 abd =
                     model.addBuildData
+
+                newCounter =
+                    model.counter + 1
+
                 newDef =
                     if abd.tab == 0 then
-                        BambooDef abd.bamboo
+                        BambooDef newCounter (sanitize abd.bamboo)
                     else
-                        TravisDef abd.travis
+                        TravisDef newCounter (sanitize abd.travis)
+
                 newBuilds =
-                    case abd.editing of
+                    ( case abd.editing of
                         Just build ->
                             model.builds
                                 |> List.map (\b ->
-                                    if b.def == build.def then
+                                    if getDefId b.def == getDefId build.def then
                                         defaultBuild newDef
                                     else
                                         b
@@ -258,89 +300,117 @@ updateAddBuildView abvm model =
                             model.builds ++
                                 [ defaultBuild newDef
                                 ]
-
-                newPersistedData =
-                    createPersistedData newBuilds
-
-                toastMsg =
-                    case abd.editing of
+                    )
+                    |> List.sortBy (\b ->
+                        getBuildName b.def
+                    )
+            in
+                updateBuildsAndSave
+                    { model | counter = newCounter }
+                    newBuilds
+                    ( case abd.editing of
                         Just editedBuild ->
                             "Build " ++ (getBuildName newDef) ++ " updated"
                         Nothing ->
                             "Build added : " ++ (getBuildName newDef)
-                (m, c) =
-                    addToast toastMsg model
-            in
-                (
-                    { m
-                        | builds = newBuilds
-                        , view = BuildListView
-                    }
-                , Cmd.batch
-                    [ Ports.saveData newPersistedData
-                    , c
-                    ]
-                )
+                    )
 
         ABBambooServerUrlChanged s ->
             ( mapBambooBuildData
                 model
-                (\bbd -> { bbd | serverUrl = s } )
+                (\(b, be) ->
+                    ( { b | serverUrl = s }
+                    , { be | serverUrl = validateRequired s }
+                    )
+                )
             , Cmd.none
             )
 
         ABBambooUsernameChanged s ->
             ( mapBambooBuildData
                 model
-                (\bbd -> { bbd | username = s } )
+                (\(b, be) ->
+                    ( { b | username = s }
+                    , be
+                    )
+                )
             , Cmd.none
             )
 
         ABBambooPasswordChanged s ->
             ( mapBambooBuildData
                 model
-                (\bbd -> { bbd | password = s } )
+                (\(b, be) ->
+                    ( { b | password = s }
+                    , be
+                    )
+                )
             , Cmd.none
             )
 
         ABBambooPlanChanged s ->
             ( mapBambooBuildData
                 model
-                (\bbd -> { bbd | plan = s } )
+                (\(b, be) ->
+                    ( { b | plan = s }
+                    , { be | plan = validateRequired s }
+                    )
+                )
             , Cmd.none
             )
 
         ABTravisServerUrlChanged s ->
             ( mapTravisBuildData
                 model
-                (\d -> { d | serverUrl = s } )
+                (\(t, te) ->
+                    ( { t | serverUrl = s }
+                    , { te | serverUrl = validateRequired s }
+                    )
+                )
             , Cmd.none
             )
 
         ABTravisTokenChanged s ->
             ( mapTravisBuildData
                 model
-                (\d -> { d | token = s } )
+                (\(t, te) ->
+                    ( { t | token = s }
+                    , te
+                    )
+                )
             , Cmd.none
             )
 
         ABTravisRepoChanged s ->
             ( mapTravisBuildData
                 model
-                (\d -> { d | repository = s } )
+                (\(t, te) ->
+                    ( { t | repository = s }
+                    , { te | repository = validateRequired s }
+                    )
+                )
             , Cmd.none
             )
 
         ABTravisBranchChanged s ->
             ( mapTravisBuildData
                 model
-                (\d -> { d | branch = s } )
+                (\(t, te) ->
+                    ( { t | branch = s }
+                    , { te | branch = validateRequired s }
+                    )
+                )
             , Cmd.none
             )
+
+
 
 updateBuildsView : BVMsg -> Model -> (Model, Cmd Msg)
 updateBuildsView bvm model =
     case bvm of
+        BVNowReceived now ->
+            handleTick model now
+
         BVAddBuildClicked ->
             (
                 { model
@@ -371,7 +441,7 @@ updateBuildsView bvm model =
                         |> List.filter (\b -> b.def /= build.def)
 
                 newPersistedData =
-                    createPersistedData newBuilds
+                    createPersistedData model.preferences newBuilds
             in
                 (
                     { m
@@ -383,52 +453,175 @@ updateBuildsView bvm model =
                     ]
                 )
 
-mapBambooBuildData : Model -> (Bamboo.BambooData -> Bamboo.BambooData) -> Model
+        BVCopyClicked build ->
+            let
+                newCounter =
+                    model.counter + 1
+
+                newDef =
+                    case build.def of
+                        BambooDef _ d -> BambooDef newCounter (Bamboo.copy d)
+                        TravisDef _ d -> TravisDef newCounter (Travis.copy d)
+
+                newBuilds =
+                    model.builds
+                        |> List.append [ defaultBuild newDef ]
+                        |> List.sortBy (\b ->
+                            getBuildName b.def
+                        )
+            in
+                updateBuildsAndSave
+                    { model | counter = newCounter }
+                    newBuilds
+                    ( (getBuildName newDef) ++ " duplicated" )
+
+
+        BVAboutClicked ->
+            ({ model | dialogKind = AboutDialog }, Cmd.none)
+
+        BVPrefsClicked ->
+            ({ model | dialogKind = PreferencesDialog }, Cmd.none)
+
+        BVPrefsToggleNotif ->
+            updatePrefsAndSave
+                model
+                (\p ->
+                    { p
+                        | enableNotifications =
+                            not p.enableNotifications
+                    }
+                )
+
+        BVPrefsPollingChanged s ->
+            updatePrefsAndSave
+                model
+                (\p ->
+                    { p
+                        | pollingInterval =
+                            String.toInt s
+                                |> Result.withDefault 0
+                    }
+                )
+
+        BVBuildClicked b ->
+            case b.result of
+                Just result ->
+                    ( model
+                    , Ports.openURL result.url
+                    )
+                Nothing ->
+                    case b.fetchError of
+                        Just err ->
+                            (
+                                { model
+                                    | dialogKind = FetchErrorDialog b
+                                }
+                            , Cmd.none
+                            )
+                        Nothing ->
+                            (model, Cmd.none)
+
+        BVQuitClicked ->
+            ( model
+            , Ports.quit ()
+            )
+
+
+updateBuildsAndSave : Model -> List Build -> String -> (Model, Cmd Msg)
+updateBuildsAndSave model newBuilds toastText =
+    let
+        newPersistedData =
+            createPersistedData model.preferences newBuilds
+        (m, c) =
+            addToast toastText model
+    in
+        (
+            { m
+                | builds = newBuilds
+                , view = BuildListView
+            }
+        , Cmd.batch
+            [ Ports.saveData newPersistedData
+            , c
+            , fetchNow
+            ]
+        )
+
+
+
+updatePrefsAndSave : Model -> (Preferences -> Preferences) -> (Model, Cmd Msg)
+updatePrefsAndSave model f =
+    let
+        newPrefs =
+            f model.preferences
+    in
+        (
+            { model
+                | preferences = newPrefs
+            }
+        , createPersistedData newPrefs model.builds
+            |> Ports.saveData
+        )
+
+
+mapBambooBuildData : Model -> ((Bamboo.BambooData, Bamboo.BambooValidationErrors) -> (Bamboo.BambooData, Bamboo.BambooValidationErrors)) -> Model
 mapBambooBuildData model f =
     let
         abd =
             model.addBuildData
-        newAbd =
-            { abd | bamboo = f abd.bamboo }
+
+        (bamboo, bambooErrors) =
+            f (abd.bamboo, abd.bambooErrors)
     in
         { model
-            | addBuildData = newAbd
+            | addBuildData =
+                { abd
+                    | bamboo = bamboo
+                    , bambooErrors = bambooErrors
+                }
         }
 
 
-mapTravisBuildData : Model -> (Travis.TravisData -> Travis.TravisData) -> Model
+mapTravisBuildData : Model -> ((Travis.TravisData, Travis.TravisValidationErrors) -> (Travis.TravisData, Travis.TravisValidationErrors)) -> Model
 mapTravisBuildData model f =
     let
         abd =
             model.addBuildData
-        newAbd =
-            { abd | travis = f abd.travis }
+        (travis, travisErrors) =
+            f (abd.travis, abd.travisErrors)
     in
         { model
-            | addBuildData = newAbd
+            | addBuildData =
+                { abd
+                    | travis = travis
+                    , travisErrors = travisErrors
+                }
         }
 
 
-desktopNotifIfBuildStateChanged : Build -> Cmd m
-desktopNotifIfBuildStateChanged build =
-    case build.result of
-        Just result ->
-            if build.previousStatus /= Unknown
-                && build.previousStatus /= result.status then
-                { title = result.name
-                , body =
-                    case result.status of
-                        Green -> "Build is now green"
-                        Red -> "Build has failed"
-                        _ -> ""
-                , isGreen =
-                    result.status == Green
-                }
-                |> Ports.desktopNotification
-            else
+desktopNotifIfBuildStateChanged : Model -> Build -> Cmd m
+desktopNotifIfBuildStateChanged model build =
+    if model.preferences.enableNotifications then
+        case build.result of
+            Just result ->
+                if build.previousStatus /= Unknown
+                    && build.previousStatus /= result.status then
+                    { title = result.name
+                    , body =
+                        case result.status of
+                            Green -> "Build is now green"
+                            Red -> "Build has failed"
+                            _ -> ""
+                    , isGreen =
+                        result.status == Green
+                    }
+                    |> Ports.desktopNotification
+                else
+                    Cmd.none
+            Nothing ->
                 Cmd.none
-        Nothing ->
-            Cmd.none
+    else
+        Cmd.none
 
 
 subscriptions : Model -> Sub Msg
@@ -436,7 +629,10 @@ subscriptions model =
     Sub.batch <|
         [ case model.view of
             BuildListView ->
-                Time.every (Time.second * 5) Tick
+                if model.preferences.pollingInterval > 0 then
+                    Time.every (Time.second * (toFloat model.preferences.pollingInterval)) Tick
+                else
+                    Sub.none
             AddBuildView ->
                 Sub.none
         ] ++

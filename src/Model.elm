@@ -10,9 +10,15 @@ import Json.Decode exposing (..)
 import Json.Encode as JE
 import Material.Snackbar as Snackbar
 
+type alias Flags =
+    { appName : String
+    , appVersion : String
+    , dataFileName : String
+    }
+
 type BuildDef
-    = BambooDef BambooData
-    | TravisDef TravisData
+    = BambooDef Int BambooData
+    | TravisDef Int TravisData
 
 
 type alias Build =
@@ -41,6 +47,8 @@ type alias AddBuildData =
     , travis : Travis.TravisData
     , tab : Int
     , editing : Maybe Build
+    , bambooErrors : Bamboo.BambooValidationErrors
+    , travisErrors : Travis.TravisValidationErrors
     }
 
 
@@ -60,6 +68,15 @@ initialAddBuildData =
         }
     , tab = 0
     , editing = Nothing
+    , bambooErrors =
+        { serverUrl = Nothing
+        , plan = Nothing
+        }
+    , travisErrors =
+        { serverUrl = Nothing
+        , repository = Nothing
+        , branch = Nothing
+        }
     }
 
 
@@ -72,13 +89,13 @@ editBuildData build =
         { bd
             | bamboo =
                 case build.def of
-                    BambooDef d ->
+                    BambooDef i d ->
                         d
                     _ ->
                         bd.bamboo
             , travis =
                 case build.def of
-                    TravisDef d ->
+                    TravisDef i d ->
                         d
                     _ ->
                         bd.travis
@@ -86,8 +103,8 @@ editBuildData build =
                 Just build
             , tab =
                 case build.def of
-                    BambooDef _ -> 0
-                    TravisDef _ -> 1
+                    BambooDef _ _ -> 0
+                    TravisDef _ _ -> 1
         }
 
 
@@ -96,8 +113,15 @@ type View
     | AddBuildView
 
 
+type DialogKind
+    = AboutDialog
+    | PreferencesDialog
+    | FetchErrorDialog Build
+
+
 type alias Model =
-    { view : View
+    { flags : Flags
+    , view : View
     , builds : List Build
     , addBuildData : AddBuildData
     , time : Time
@@ -106,12 +130,16 @@ type alias Model =
     , loadError : Maybe String
     , snackbar : Snackbar.Model Int
     , dataFileNotFound : Bool
+    , dialogKind : DialogKind
+    , preferences : Preferences
+    , counter : Int
     }
 
 
-initialModel : Model
-initialModel =
-    { view = BuildListView
+initialModel : Flags -> Model
+initialModel flags =
+    { flags = flags
+    , view = BuildListView
     , builds = []
     , addBuildData = initialAddBuildData
     , time = -1
@@ -120,21 +148,55 @@ initialModel =
     , loadError = Nothing
     , snackbar = Snackbar.model
     , dataFileNotFound = False
+    , dialogKind = AboutDialog
+    , preferences = initialPreferences
+    , counter = 0
+    }
+
+
+type alias Preferences =
+    { enableNotifications : Bool
+    , pollingInterval : Int
+    }
+
+initialPreferences : Preferences
+initialPreferences =
+    { enableNotifications = True
+    , pollingInterval = 30
     }
 
 
 type alias PersistedData =
     { bamboo : List Bamboo.BambooData
     , travis : List Travis.TravisData
+    , preferences : Preferences
     }
 
 
 persistedDataDecoder : Decoder PersistedData
 persistedDataDecoder =
-    map2 PersistedData
+    map3 PersistedData
         (field "bamboo" (list Bamboo.bambooDataDecoder))
         (field "travis" (list Travis.travisDataDecoder))
+        ( oneOf
+            [ (field "preferences" preferencesDecoder)
+            , succeed initialPreferences
+            ]
+        )
 
+
+preferencesDecoder : Decoder Preferences
+preferencesDecoder =
+    map2 Preferences
+        (field "enableNotifications" bool)
+        (field "pollingInterval" int)
+
+
+encodePreferences : Preferences -> Value
+encodePreferences v =
+    JE.object
+        [ ( "enableNotifications", JE.bool v.enableNotifications )
+        ]
 
 encodePersistedData : PersistedData -> Value
 encodePersistedData v =
@@ -155,42 +217,49 @@ encodePersistedData v =
                 )
             )
           )
+        , ( "preferences", encodePreferences v.preferences )
         ]
 
 
 getBuildName : BuildDef -> String
 getBuildName buildDef =
     case buildDef of
-        BambooDef d ->
+        BambooDef _ d ->
             d.plan
-        TravisDef d ->
-            d.branch ++ "@" ++ d.repository
+        TravisDef _ d ->
+            d.repository ++ "/" ++ d.branch
 
+getDefId : BuildDef -> Int
+getDefId buildDef =
+    case buildDef of
+        BambooDef i _ -> i
+        TravisDef i _ -> i
 
-createPersistedData : List Build -> PersistedData
-createPersistedData builds =
+createPersistedData : Preferences -> List Build -> PersistedData
+createPersistedData prefs builds =
     { bamboo =
         builds
             |> List.filter (\b ->
                 case b.def of
-                    BambooDef d -> True
+                    BambooDef _ d -> True
                     _ -> False
             )
             |> List.map (\b ->
                 case b.def of
-                    BambooDef d -> d
+                    BambooDef _ d -> d
                     _ -> Debug.crash "damnit"
             )
     , travis =
         builds
             |> List.filter (\b ->
                 case b.def of
-                    TravisDef d -> True
+                    TravisDef _ d -> True
                     _ -> False
             )
             |> List.map (\b ->
                 case b.def of
-                    TravisDef d -> d
+                    TravisDef _ d -> d
                     _ -> Debug.crash "damnit"
             )
+    , preferences = prefs
     }

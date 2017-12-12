@@ -1,14 +1,17 @@
 {
-  "name": "b-loot",
+  "name": "build-watcher",
   "version": "1.0.0",
   "description": "Multi-server build monitoring",
   "main": "main.js",
   "scripts": {
     "build": "elm make --output dist/app.js src/*.elm",
-    "start": "electron .",
-    "debug": "electron --inspect-brk=5858 ."
+    "start": "npm run build && electron .",
+    "debug": "electron --inspect-brk=5858 .",
+    "release-mac": "npm run build && electron-packager . --overwrite --platform=darwin --arch=x64 --icon=assets/app-icon/mac/app.icns --prune=true --out=release-builds --ignore=\"(elm-stuff)\"",
+    "release-win": "npm run build && electron-packager . build-watcher --overwrite --asar=true --platform=win32 --arch=ia32 --icon=assets/app-icon/win/app.ico --prune=true --out=release-builds --version-string.CompanyName=CE --version-string.FileDescription=CE --version-string.ProductName=\"build-watcher\"",
+    "release-linux": "npm run build && electron-packager . build-watcher --overwrite --asar=true --platform=linux --arch=x64 --icon=assets/app-icon/png/512.png --prune=true --out=release-builds"
   },
-  "repository": "https://github.com/VANKEISB/b-loot",
+  "repository": "https://github.com/vankeisb/build-watcher",
   "keywords": [
     "Build",
     "Monitoring",
@@ -16,12 +19,14 @@
     "Travis",
     "Notifications"
   ],
-  "productName": "B-loot",
+  "productName": "build-watcher",
   "author": "remi@rvkb.com",
   "license": "CC0-1.0",
   "devDependencies": {
     "electron": "~1.7.8",
     "electron-packager": "^10.1.0",
     "elm": "0.18.0"
+  },
+  "dependencies": {
   }
 }

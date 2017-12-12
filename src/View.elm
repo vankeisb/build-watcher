@@ -13,16 +13,20 @@ import Material.Icon as Icon
 import Material.Layout as Layout
 import Material.List as Lists
 import Material.Menu as Menu
-import Material.Options as Options exposing (css)
+import Material.Options as Options exposing (css, cs)
 import Material.Scheme
 import Material.Snackbar as Snackbar
 import Material.Tabs as Tabs
 import Material.Textfield as Textfield
 import Material.Typography as Typo
+import Material.Toggles as Toggles
 import Messages exposing (..)
 import Model exposing (..)
 import Style exposing (..)
 import Json.Decode as Json
+import Bamboo
+import Travis
+
 
 i name =
     Icon.view name [ css "width" "40px" ]
@@ -47,7 +51,7 @@ view model =
                     [ Icon.view "remove_red_eye"
                         [ css "padding-right" "12px"
                         ]
-                    , span [] [ text appTitle ]
+                    , span [] [ text <| model.flags.appName ]
                     , span []
                         [ case model.view of
                             BuildListView ->
@@ -68,18 +72,27 @@ view model =
                             , Menu.ripple
                             ]
                             [ Menu.item
-                                [ Menu.onSelect <| BuildsViewMsg BVAddBuildClicked
+                                [ Dialog.openOn "click"
+                                , Menu.onSelect <| BuildsViewMsg BVPrefsClicked
                                 , padding
                                 ]
-                                [ i "add_circle"
-                                , text "Add build..."
+                                [ i "build"
+                                , text "Preferences"
                                 ]
                             , Menu.item
                                 [ Dialog.openOn "click"
+                                , Menu.onSelect <| BuildsViewMsg BVAboutClicked
                                 , padding
                                 ]
                                 [ i "help"
                                 , text "About"
+                                ]
+                            , Menu.item
+                                [ Menu.onSelect <| BuildsViewMsg BVQuitClicked
+                                , padding
+                                ]
+                                [ i "close"
+                                , text "Quit"
                                 ]
                             ]
 
@@ -98,7 +111,15 @@ view model =
                             []
                             [ text <| "Error loading your data : " ++ loadError
                             ]
+                        , p
+                            []
+                            [ text "Please fix (or delete) the data file at :"]
+                        , code
+                            []
+                            [ text model.flags.dataFileName
+                            ]
                         ]
+
                     Nothing ->
                         case model.view of
                             BuildListView ->
@@ -112,13 +133,12 @@ view model =
                     ]
                 ]
             ) ++
-                [ aboutDialog model
+                [ dialog model
                 , Snackbar.view model.snackbar |> Html.map Snackbar
                 ]
 
         }
-        |> Material.Scheme.top
-
+        |> Material.Scheme.topWithScheme Color.BlueGrey Color.Blue
 
 
 viewDefAndResult : Model -> Int -> Build -> Html Msg
@@ -160,12 +180,18 @@ viewDefAndResult model index b =
             css "padding-right" "18px"
 
         liClick =
+            Options.onClick (BuildsViewMsg (BVBuildClicked b))
+
+        (browseEnabledAttr, browseSelectAttr) =
             case b.result of
                 Just result ->
-                    Options.attribute
-                        <| Html.Events.onClick (OpenUrl result.url)
+                    ( Options.nop
+                    , Menu.onSelect <| BuildsViewMsg (BVBuildClicked b)
+                    )
                 Nothing ->
-                    Options.nop
+                    ( Menu.disabled
+                    , Options.nop
+                    )
     in
         Lists.li
             [ Lists.withSubtitle
@@ -173,6 +199,10 @@ viewDefAndResult model index b =
             ]
             [ Lists.content
                 [ liClick
+                , b.fetchError
+                    |> Maybe.map (\_ -> Dialog.openOn "click")
+                    |> Maybe.withDefault Options.nop
+                , cs "bm-clickable"
                 ]
                 [ Lists.avatarIcon
                     avatarIcon
@@ -185,9 +215,9 @@ viewDefAndResult model index b =
                     wordWrap
                     [ text <|
                         case b.def of
-                            BambooDef d ->
+                            BambooDef _ d ->
                                 d.serverUrl
-                            TravisDef d ->
+                            TravisDef _ d ->
                                 d.serverUrl
                     ]
                 ]
@@ -196,11 +226,26 @@ viewDefAndResult model index b =
                 , Menu.ripple
                 ]
                 [ Menu.item
+                    [ browseSelectAttr
+                    , browseEnabledAttr
+                    , padding
+                    ]
+                    [ i "launch"
+                    , text "Browse"
+                    ]
+                , Menu.item
                     [ Menu.onSelect <| BuildsViewMsg (BVEditClicked b)
                     , padding
                     ]
                     [ i "edit"
-                    , text "Edit build..."
+                    , text "Edit"
+                    ]
+                , Menu.item
+                    [ Menu.onSelect <| BuildsViewMsg (BVCopyClicked b)
+                    , padding
+                    ]
+                    [ i "content_copy"
+                    , text "Duplicate"
                     ]
                 , Menu.item
                     [ Menu.onSelect <| BuildsViewMsg (BVDeleteClicked b)
@@ -215,6 +260,23 @@ viewDefAndResult model index b =
 
 viewBuildList : Model -> List (Html Msg)
 viewBuildList model =
+    let
+        addButtonDiv =
+          div
+          []
+          [ Button.render Mdl [0] model.mdl
+              [ Button.fab
+              , Button.ripple
+              , Button.colored
+              , Options.onClick <| BuildsViewMsg BVAddBuildClicked
+              , css "position" "fixed"
+              , css "bottom" "24px"
+              , css "right" "24px"
+              ]
+              [ Icon.i "add"]
+          ]
+    in
+
     [
         if List.isEmpty model.builds then
             div
@@ -241,18 +303,23 @@ viewBuildList model =
                         ]
                         [ text <|
                             if model.dataFileNotFound then
-                                "Welcome to " ++ appTitle ++ " ! Add builds using the top-right menu."
+                                "Welcome to " ++ model.flags.appName ++ " ! Add builds using the bottom-right button."
                             else
-                                "No builds are monitored. Add builds using the top-right menu."
+                                "No builds are monitored. Add builds using the bottom-right button."
                         ]
                     ]
+                , addButtonDiv
                 ]
         else
-            Lists.ul
+          div
+          []
+          [ Lists.ul
                 []
                 ( model.builds
                     |> List.indexedMap (viewDefAndResult model)
                 )
+          , addButtonDiv
+          ]
     ]
 
 
@@ -289,11 +356,15 @@ viewAddTabs model =
 viewAddBuild : Model -> List (Html Msg)
 viewAddBuild model =
     let
-        rows =
+        (rows, canSave) =
             if model.addBuildData.tab == 0 then
-                bambooRows model
+                ( bambooRows model
+                , Bamboo.canSave model.addBuildData.bamboo
+                )
             else
-                travisRows model
+                ( travisRows model
+                , Travis.canSave model.addBuildData.travis
+                )
     in
         [ viewAddTabs model
         , Grid.grid
@@ -307,6 +378,7 @@ viewAddBuild model =
                         , Button.ripple
                         , Options.onClick <| AddBuildViewMsg ABOkClicked
                         , css "width" "100%"
+                        , Button.disabled |> Options.when (not canSave)
                         ]
                         [ text <|
                             case model.addBuildData.editing of
@@ -351,88 +423,137 @@ tfOpts rest =
     ] ++ rest
 
 
+withHelp : String -> Html Msg -> Html Msg
+withHelp txt html =
+    div
+        []
+        [ html
+        , Options.styled p
+            [ Typo.caption ]
+            [ text txt ]
+        ]
+
+textfieldError maybeString =
+    maybeString
+        |> Maybe.map Textfield.error
+        |> Maybe.withDefault Options.nop
+
+
 bambooRows : Model -> List (Grid.Cell Msg)
 bambooRows model =
-    [ formRow <|
-        Textfield.render Mdl [2] model.mdl
-            ( tfOpts
-                [ Textfield.label "Server URL"
-                , Textfield.value model.addBuildData.bamboo.serverUrl
-                , Options.onInput <| onInputAbv ABBambooServerUrlChanged
-                ]
-            )
-            []
-    , formRow <|
-        Textfield.render Mdl [3] model.mdl
-            ( tfOpts
-                [ Textfield.label "Plan"
-                , Textfield.value model.addBuildData.bamboo.plan
-                , Options.onInput <| onInputAbv ABBambooPlanChanged
-                ]
-            )
-            []
-    , formRow <|
-        Textfield.render Mdl [4] model.mdl
-            ( tfOpts
-                [ Textfield.label "Username"
-                , Textfield.value model.addBuildData.bamboo.username
-                , Options.onInput <| onInputAbv ABBambooUsernameChanged
-                ]
-            )
-            []
-    , formRow <|
-        Textfield.render Mdl [5] model.mdl
-            ( tfOpts
-                [ Textfield.label "Password"
-                , Textfield.value model.addBuildData.bamboo.password
-                , Options.onInput <| onInputAbv ABBambooPasswordChanged
-                ]
-            )
-            []
-    ]
+    let
+        bamboo =
+            model.addBuildData.bamboo
+        bambooErrors =
+            model.addBuildData.bambooErrors
+    in
+        [ formRow <|
+            withHelp "URL (and port if any) of the Bamboo server" <|
+            Textfield.render Mdl [2] model.mdl
+                ( tfOpts
+                    [ Textfield.label "Server URL"
+                    , Textfield.value bamboo.serverUrl
+                    , Options.onInput <| onInputAbv ABBambooServerUrlChanged
+                    , textfieldError bambooErrors.serverUrl
+                    ]
+                )
+                []
+        , formRow <|
+            withHelp "Plan key, usually looks like FOO-BAR" <|
+            Textfield.render Mdl [3] model.mdl
+                ( tfOpts
+                    [ Textfield.label "Plan"
+                    , Textfield.value bamboo.plan
+                    , Options.onInput <| onInputAbv ABBambooPlanChanged
+                    , textfieldError bambooErrors.plan
+                    ]
+                )
+                []
+        , formRow <|
+            withHelp "Bamboo username (if auth needed)" <|
+            Textfield.render Mdl [4] model.mdl
+                ( tfOpts
+                    [ Textfield.label "Username"
+                    , Textfield.value bamboo.username
+                    , Options.onInput <| onInputAbv ABBambooUsernameChanged
+                    ]
+                )
+                []
+        , formRow <|
+            withHelp "Bamboo password (if auth needed)" <|
+            Textfield.render Mdl [5] model.mdl
+                ( tfOpts
+                    [ Textfield.label "Password"
+                    , Textfield.value bamboo.password
+                    , Options.onInput <| onInputAbv ABBambooPasswordChanged
+                    ]
+                )
+                []
+        ]
 
 
 travisRows : Model -> List (Grid.Cell Msg)
 travisRows model =
-    [ formRow <|
-        Textfield.render Mdl [6] model.mdl
-            ( tfOpts
-                [ Textfield.label "Server URL"
-                , Textfield.value model.addBuildData.travis.serverUrl
-                , Options.onInput <| onInputAbv ABTravisServerUrlChanged
-                ]
-            )
-            []
-    , formRow <|
-        Textfield.render Mdl [7] model.mdl
-            ( tfOpts
-                [ Textfield.label "Repository"
-                , Textfield.value model.addBuildData.travis.repository
-                , Options.onInput <| onInputAbv ABTravisRepoChanged
-                ]
-            )
-            []
-    , formRow <|
-        Textfield.render Mdl [8] model.mdl
-            ( tfOpts
-                [ Textfield.label "Branch"
-                , Textfield.floatingLabel
-                , Textfield.text_
-                , Textfield.value model.addBuildData.travis.branch
-                , Options.onInput <| onInputAbv ABTravisBranchChanged
-                ]
-            )
-            []
-    , formRow <|
-        Textfield.render Mdl [9] model.mdl
-            ( tfOpts
-                [ Textfield.label "Token"
-                , Textfield.value model.addBuildData.travis.token
-                , Options.onInput <| onInputAbv ABTravisTokenChanged
-                ]
-            )
-            []
-    ]
+    let
+        travis =
+            model.addBuildData.travis
+        travisErrors =
+            model.addBuildData.travisErrors
+    in
+        [ formRow <|
+            withHelp "URL of the Travis server (e.g. https://travis.org)" <|
+            Textfield.render Mdl [6] model.mdl
+                ( tfOpts
+                    [ Textfield.label "Server URL"
+                    , Textfield.value travis.serverUrl
+                    , Options.onInput <| onInputAbv ABTravisServerUrlChanged
+                    , textfieldError travisErrors.serverUrl
+                    ]
+                )
+                []
+        , formRow <|
+            withHelp "The repository (e.g. rails/rails)" <|
+            Textfield.render Mdl [7] model.mdl
+                ( tfOpts
+                    [ Textfield.label "Repository"
+                    , Textfield.value travis.repository
+                    , Options.onInput <| onInputAbv ABTravisRepoChanged
+                    , textfieldError travisErrors.repository
+                    ]
+                )
+                []
+        , formRow <|
+            withHelp "Branch to watch (e.g. master)" <|
+            Textfield.render Mdl [8] model.mdl
+                ( tfOpts
+                    [ Textfield.label "Branch"
+                    , Textfield.floatingLabel
+                    , Textfield.text_
+                    , Textfield.value travis.branch
+                    , Options.onInput <| onInputAbv ABTravisBranchChanged
+                    , textfieldError travisErrors.branch
+                    ]
+                )
+                []
+        , formRow <|
+            withHelp "Travis token if needed (as provided by the travis cmd line)" <|
+            Textfield.render Mdl [9] model.mdl
+                ( tfOpts
+                    [ Textfield.label "Token"
+                    , Textfield.value travis.token
+                    , Options.onInput <| onInputAbv ABTravisTokenChanged
+                    ]
+                )
+                []
+        ]
+
+
+dialog : Model -> Html Msg
+dialog model =
+    case model.dialogKind of
+        AboutDialog -> aboutDialog model
+        PreferencesDialog -> preferencesDialog model
+        FetchErrorDialog build -> fetchErrorDialog model build
 
 
 aboutDialog : Model -> Html Msg
@@ -443,7 +564,11 @@ aboutDialog model =
         , Dialog.content []
             [ p []
                 [ text
-                    <| appTitle ++ " monitors builds from several C.I. servers."
+                    <| "version : " ++ model.flags.appVersion
+                ]
+            , p []
+                [ text
+                    <| model.flags.appName ++ " monitors builds from several C.I. servers."
                 ]
             , p []
                 [ text "No more excuses for red builds !"
@@ -458,7 +583,7 @@ aboutDialog model =
                         { preventDefault = True
                         , stopPropagation = True
                         }
-                        (Json.succeed <| OpenUrl "http://todo")
+                        (Json.succeed <| OpenUrl "https://github.com/vankeisb/build-watcher")
                     ]
                     [ text "GitHub"
                     ]
@@ -472,3 +597,76 @@ aboutDialog model =
                 [ text "Dismiss" ]
             ]
         ]
+
+preferencesDialog : Model -> Html Msg
+preferencesDialog model =
+    Dialog.view
+        []
+        [ Dialog.title [] [ text "Preferences" ]
+        , Dialog.content []
+            [ growLeft
+                ( label
+                    []
+                    [ text "Enable notifications"
+                    ]
+                )
+                ( Toggles.switch Mdl [0] model.mdl
+                    [ Options.onToggle <| BuildsViewMsg BVPrefsToggleNotif
+                    , Toggles.ripple
+                    , Toggles.value model.preferences.enableNotifications
+                    ]
+                    []
+                )
+            , Options.div
+                [ css "height" "18px"
+                ]
+                []
+            , Textfield.render Mdl [ 22 ] model.mdl
+                [ Textfield.label "Polling interval (seconds)"
+                , Textfield.floatingLabel
+                , Textfield.text_
+                , Textfield.value
+                    <| toString model.preferences.pollingInterval
+                , Options.onInput
+                    (\s -> BuildsViewMsg <| BVPrefsPollingChanged s)
+                ]
+                []
+            ]
+        , Dialog.actions []
+            [ Button.render Mdl
+                [ 21 ]
+                model.mdl
+                [ Dialog.closeOn "click" ]
+                [ text "Done" ]
+            ]
+        ]
+
+
+fetchErrorDialog : Model -> Build -> Html Msg
+fetchErrorDialog model build =
+    case build.fetchError of
+        Just error ->
+            Dialog.view
+                []
+                [ Dialog.title [] [ text "Error" ]
+                , Dialog.content []
+                    [ p []
+                        [ text
+                            <| "An error occured while fetching build results for "
+                            ++ getBuildName build.def
+                        ]
+                    , code
+                        []
+                        [ text <| toString error
+                        ]
+                    ]
+                , Dialog.actions []
+                    [ Button.render Mdl
+                        [ 23 ]
+                        model.mdl
+                        [ Dialog.closeOn "click" ]
+                        [ text "Got it" ]
+                    ]
+                ]
+        Nothing ->
+            text ""

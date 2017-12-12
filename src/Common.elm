@@ -22,5 +22,9 @@ stringOrEmpty =
     oneOf [ string, succeed "" ]
 
 
-appTitle =
-    "Build Watcher"
+validateRequired : String -> Maybe String
+validateRequired s =
+    if String.isEmpty s then
+        Just "This field is required"
+    else
+        Nothing
