@@ -61,15 +61,6 @@ app.on('ready', createWindow)
  * the signal to exit and wants to start closing windows */
 app.on('before-quit', () => willQuitApp = true);
 
-// Quit when all windows are closed.
-// app.on('window-all-closed', function () {
-//   // On OS X it is common for applications and their menu bar
-//   // to stay active until the user quits explicitly with Cmd + Q
-//   if (process.platform !== 'darwin') {
-//     app.quit()
-//   }
-// })
-
 app.on('activate', function () {
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
@@ -81,6 +72,7 @@ app.on('activate', function () {
 
 let tray = null;
 app.on('ready', () => {
+    app.dock.hide();
     const iconName = process.platform === 'win32' ? 'windows-icon.png' : 'iconTemplate.png'
     const iconPath = path.join(__dirname, 'assets', 'tray-icon', iconName)
     tray = new Tray(iconPath)
