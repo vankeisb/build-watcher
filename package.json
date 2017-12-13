@@ -4,7 +4,7 @@
   "description": "Multi-server build monitoring",
   "main": "main.js",
   "scripts": {
-    "build": "elm make --output dist/app.js src/*.elm",
+    "build": "elm make --output dist/app.js src/App.elm",
     "start": "npm run build && electron .",
     "debug": "electron --inspect-brk=5858 .",
     "release-mac": "npm run build && electron-packager . --overwrite --platform=darwin --arch=x64 --icon=assets/app-icon/mac/app.icns --prune=true --out=release-builds --ignore=\"(elm-stuff)\"",
