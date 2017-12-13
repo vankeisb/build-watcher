@@ -42,7 +42,7 @@ type Msg
     = BuildsViewMsg BVMsg
     | AddBuildViewMsg ABVMsg
     | Tick Time
-    | FetchResult BuildDef (Result Http.Error BuildResult)
+    | FetchResult BuildDef (Result Http.Error (BuildResult, BuildDef))
     | Mdl (Material.Msg Msg)
     | OnDataLoadError DataLoadError
     | OnDataLoadFileNotFound DataLoadFileNotFound

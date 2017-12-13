@@ -130,10 +130,17 @@ update msg model =
 
         FetchResult def res ->
             let
+                mapper: Build -> Build
                 mapper b =
                     if getDefId b.def == getDefId def then
                         { b
                             | fetching = False
+                            , def =
+                                case res of
+                                    Ok (buildResult,buildDef) ->
+                                        buildDef
+                                    Err _ ->
+                                        b.def
                             , fetchError =
                                 case res of
                                     Ok _ ->
@@ -142,8 +149,8 @@ update msg model =
                                         Just e
                             , result =
                                 case res of
-                                    Ok r ->
-                                        Just r
+                                    Ok (buildResult,buildDef) ->
+                                        Just buildResult
                                     Err _ ->
                                         b.result
                             , lastFetch = model.time
@@ -193,14 +200,15 @@ fetch build time =
         }
     ,
         ( case build.def of
-            BambooDef _ bambooData ->
+            BambooDef i bambooData ->
                 Bamboo.fetch bambooData
-            TravisDef _ travisData ->
+                    |> Task.map (\br -> (br, BambooDef i bambooData))
+            TravisDef i travisData ->
                 Travis.fetch travisData
+                    |> Task.map (\(br, td) -> (br, TravisDef i td))
         )
         |> Task.attempt (FetchResult build.def)
     )
-
 
 fetchNow : Cmd Msg
 fetchNow =

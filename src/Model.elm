@@ -67,6 +67,7 @@ initialAddBuildData =
         , token = ""
         , repository = ""
         , branch = ""
+        , travisToken = Nothing
         }
     , tab = 0
     , editing = Nothing
