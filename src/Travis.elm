@@ -100,7 +100,10 @@ getToken d =
           []
       , url = (apiUrl d.serverUrl)
           ++ "/auth/github"
-      , body = Http.jsonBody <| encodeGithubToken d
+      , body = Http.jsonBody <|
+          JE.object
+            [ ( "github_token", JE.string d.token)
+            ]
       , expect = expectJson travisTokenDecoder
       , timeout = Nothing
       , withCredentials = False
@@ -111,13 +114,6 @@ getToken d =
 travisTokenDecoder : Decoder String
 travisTokenDecoder =
     field "access_token" string
-
-
-encodeGithubToken : TravisData -> Value
-encodeGithubToken d =
-    JE.object
-      [ ( "github_token", JE.string d.token)
-      ]
 
 
 fetch : TravisData -> Task Error (BuildResult, TravisData)
