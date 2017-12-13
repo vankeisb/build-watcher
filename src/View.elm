@@ -1,36 +1,39 @@
 module View exposing (..)
 
 
+import Bamboo
 import Common exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onWithOptions)
+import Json.Decode as Json
 import Material.Button as Button
 import Material.Color as Color
 import Material.Dialog as Dialog
+import Material.Elevation as Elevation
 import Material.Grid as Grid
 import Material.Icon as Icon
 import Material.Layout as Layout
 import Material.List as Lists
 import Material.Menu as Menu
-import Material.Options as Options exposing (css, cs)
+import Material.Options as Options exposing (cs, css)
 import Material.Scheme
 import Material.Snackbar as Snackbar
 import Material.Tabs as Tabs
 import Material.Textfield as Textfield
-import Material.Typography as Typo
 import Material.Toggles as Toggles
+import Material.Typography as Typo
 import Messages exposing (..)
 import Model exposing (..)
 import Style exposing (..)
-import Json.Decode as Json
-import Bamboo
 import Travis
 
 
+i : String -> Html m
 i name =
     Icon.view name [ css "width" "40px" ]
 
+padding: Options.Property c m
 padding =
     css "padding-right" "18px"
 
@@ -276,51 +279,137 @@ viewBuildList model =
               [ Icon.i "add"]
           ]
     in
-
-    [
-        if List.isEmpty model.builds then
-            div
-                [ style
-                    [ position "absolute"
-                    , top0
-                    , bottom0
-                    , left0
-                    , right0
-                    , displayFlex
-                    ]
-                ]
-                [ div
+        [
+            if List.isEmpty model.builds then
+                div
                     [ style
-                        [ displayFlex
-                        , alignItemsCenter
-                        , flexGrow
+                        [ position "absolute"
+                        , top0
+                        , bottom0
+                        , left0
+                        , right0
+                        , displayFlex
                         ]
                     ]
-                    [ Options.styled p
-                        [ Typo.center
-                        , Typo.subhead
-                        , css "width" "100%"
+                    [ div
+                        [ style
+                            [ displayFlex
+                            , alignItemsCenter
+                            , flexGrow
+                            ]
                         ]
-                        [ text <|
-                            if model.dataFileNotFound then
-                                "Welcome to " ++ model.flags.appName ++ " ! Add builds using the bottom-right button."
-                            else
-                                "No builds are monitored. Add builds using the bottom-right button."
+                        [ Options.styled p
+                            [ Typo.center
+                            , Typo.subhead
+                            , css "width" "100%"
+                            ]
+                            [ text <|
+                                if model.dataFileNotFound then
+                                    "Welcome to " ++ model.flags.appName ++ " ! Add builds using the bottom-right button."
+                                else
+                                    if String.isEmpty model.filterText then
+                                        "No builds are monitored. Add builds using the bottom-right button."
+                                    else
+                                        "No builds matching criteria"
+                            ]
+                        ]
+                    , addButtonDiv
+                    ]
+            else
+                div
+                    [ style
+                        [ positionAbsolute
+                        , top0
+                        , bottom0
+                        , right0
+                        , left0
+                        , ( "overflow", "hidden" )
+                        , displayFlex
                         ]
                     ]
-                , addButtonDiv
+                    [ div
+                        [ style
+                            [ displayFlex
+                            , flexColumn
+                            , flexGrow
+                            ]
+                        ]
+                        [ div
+                            []
+                            [ viewSearchBar model ]
+                        , div
+                            [ style
+                                [ flexGrow
+                                , positionRelative
+                                ]
+                            ]
+                            [ div
+                                [ style
+                                    [ positionAbsolute
+                                    , top0
+                                    , bottom0
+                                    , right0
+                                    , left0
+                                    , ( "overflow-y", "auto" )
+                                    ]
+                                ]
+                                [ Lists.ul []
+                                    ( model.builds
+                                        |> List.filter (\b -> not b.filtered)
+                                        |> List.indexedMap
+                                            (viewDefAndResult model)
+                                    )
+                                ]
+                            ]
+                        ]
+                        , addButtonDiv
+                    ]
+        ]
+
+
+
+viewSearchBar : Model -> Html Msg
+viewSearchBar model =
+    Options.div
+        [ Elevation.e2
+        , css "padding" "8px"
+        ]
+        [ div
+            [ style
+                [ displayFlex
+                , alignItemsCenter
                 ]
-        else
-          div
-          []
-          [ Lists.ul
+            ]
+            [ Textfield.render Mdl [ 100 ] model.mdl
+                [ Textfield.label "Filter..."
+                , Options.css "flex-grow" "1"
+                , Options.onInput (\s -> BuildsViewMsg (BVFilterChanged s))
+                , Textfield.value model.filterText
+                ]
                 []
-                ( model.builds
-                    |> List.indexedMap (viewDefAndResult model)
-                )
-          , addButtonDiv
-          ]
-    ]
+            , div
+                [ style
+                    [ displayFlex
+                    , alignItemsCenter
+                    ]
+                ]
+                [ Button.render Mdl [ 101 ] model.mdl
+                    [ Button.ripple
+                    , Button.icon
+                    , Options.onClick <| BuildsViewMsg BVSearch
+                    ]
+                    [ Icon.i "search"
+                    ]
+                , Button.render Mdl [ 102 ] model.mdl
+                    [ Button.ripple
+                    , Button.icon
+                    , Options.onClick <| BuildsViewMsg BVClearFilter
+                    ]
+                    [ Icon.i "close"
+                    ]
+                ]
+            ]
+        ]
 
 
 viewAddTabs : Model -> Html Msg
@@ -421,7 +510,6 @@ tfOpts rest =
     , Textfield.text_
     , css "width" "100%"
     ] ++ rest
-
 
 withHelp : String -> Html Msg -> Html Msg
 withHelp txt html =

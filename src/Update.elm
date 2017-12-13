@@ -100,6 +100,7 @@ update msg model =
                                     , counter =
                                         nbBamboo + (List.length travisBuilds)
                                 }
+                                |> applyFilter
                             , fetchNow
                             )
                     Err e ->
@@ -306,7 +307,9 @@ updateAddBuildView abvm model =
                     )
             in
                 updateBuildsAndSave
-                    { model | counter = newCounter }
+                    ( { model | counter = newCounter }
+                        |> applyFilter
+                    )
                     newBuilds
                     ( case abd.editing of
                         Just editedBuild ->
@@ -525,6 +528,42 @@ updateBuildsView bvm model =
             ( model
             , Ports.quit ()
             )
+
+        BVFilterChanged s ->
+            doFilter model s
+
+        BVClearFilter ->
+            doFilter model ""
+
+        BVSearch ->
+            doFilter model model.filterText
+
+
+applyFilter : Model -> Model
+applyFilter model =
+    { model
+        | builds =
+            model.builds
+                |> List.map (\b ->
+                    { b
+                        | filtered =
+                            if String.isEmpty model.filterText then
+                                False
+                            else
+                                not <|
+                                    String.contains
+                                        (String.toLower model.filterText)
+                                        (String.toLower (getBuildName b.def))
+                    }
+                )
+    }
+
+
+doFilter : Model -> String -> (Model, Cmd Msg)
+doFilter model newFilter =
+    ( applyFilter { model | filterText = newFilter }
+    , Cmd.none
+    )
 
 
 updateBuildsAndSave : Model -> List Build -> String -> (Model, Cmd Msg)

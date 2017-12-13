@@ -33,6 +33,10 @@ type BVMsg
     | BVBuildClicked Build
     | BVQuitClicked
     | BVCopyClicked Build
+    | BVFilterChanged String
+    | BVSearch
+    | BVClearFilter
+
 
 type Msg
     = BuildsViewMsg BVMsg

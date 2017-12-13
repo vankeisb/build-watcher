@@ -28,6 +28,7 @@ type alias Build =
     , fetching : Bool
     , fetchError : Maybe Http.Error
     , previousStatus : Status
+    , filtered : Bool
     }
 
 
@@ -39,6 +40,7 @@ defaultBuild buildDef =
     , fetching = False
     , fetchError = Nothing
     , previousStatus = Unknown
+    , filtered = False
     }
 
 
@@ -133,6 +135,7 @@ type alias Model =
     , dialogKind : DialogKind
     , preferences : Preferences
     , counter : Int
+    , filterText : String
     }
 
 
@@ -151,6 +154,7 @@ initialModel flags =
     , dialogKind = AboutDialog
     , preferences = initialPreferences
     , counter = 0
+    , filterText = ""
     }
 
 
