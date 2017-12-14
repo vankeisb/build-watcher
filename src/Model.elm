@@ -51,6 +51,8 @@ type alias AddBuildData =
     , editing : Maybe Build
     , bambooErrors : Bamboo.BambooValidationErrors
     , travisErrors : Travis.TravisValidationErrors
+    , importText : String
+    , importError : Maybe String
     }
 
 
@@ -80,6 +82,8 @@ initialAddBuildData =
         , repository = Nothing
         , branch = Nothing
         }
+    , importText = ""
+    , importError = Nothing
     }
 
 
@@ -120,6 +124,7 @@ type DialogKind
     = AboutDialog
     | PreferencesDialog
     | FetchErrorDialog Build
+    | ShareBuildDialog (List Build)
 
 
 type alias Model =
@@ -171,23 +176,41 @@ initialPreferences =
     }
 
 
+type PersistedBuild
+    = PersistedBambooBuild Bamboo.BambooData
+    | PersistedTravisBuild Travis.TravisData
+
+
 type alias PersistedData =
-    { bamboo : List Bamboo.BambooData
-    , travis : List Travis.TravisData
+    { builds : List PersistedBuild
     , preferences : Preferences
     }
 
 
+persistedBuildDecoder : Decoder PersistedBuild
+persistedBuildDecoder =
+    (field "kind" string)
+        |> andThen (\k ->
+            case k of
+                "bamboo" -> map PersistedBambooBuild Bamboo.bambooDataDecoder
+                "travis" -> map PersistedTravisBuild Travis.travisDataDecoder
+                _ -> fail <| "unsupported kind " ++ k
+        )
+
+
 persistedDataDecoder : Decoder PersistedData
 persistedDataDecoder =
-    map3 PersistedData
-        (field "bamboo" (list Bamboo.bambooDataDecoder))
-        (field "travis" (list Travis.travisDataDecoder))
-        ( oneOf
-            [ (field "preferences" preferencesDecoder)
-            , succeed initialPreferences
-            ]
-        )
+    let
+        builds =
+            (field "builds" (list persistedBuildDecoder))
+        preferences =
+            ( oneOf
+                [ (field "preferences" preferencesDecoder)
+                , succeed initialPreferences
+                ]
+            )
+    in
+        map2 PersistedData builds preferences
 
 
 preferencesDecoder : Decoder Preferences
@@ -205,25 +228,22 @@ encodePreferences v =
 
 encodePersistedData : PersistedData -> Value
 encodePersistedData v =
-    JE.object
-        [ ( "bamboo"
-          , (JE.list
-                ( List.map
-                    Bamboo.encodeBambooData
-                    v.bamboo
+    let
+        builds =
+            v.builds
+                |> List.map (\pb ->
+                    case pb of
+                        PersistedBambooBuild d ->
+                            Bamboo.encodeBambooData True d
+                        PersistedTravisBuild d ->
+                            Travis.encodeTravisData True d
                 )
-            )
-          )
-        , ( "travis"
-          , (JE.list
-                (List.map
-                    Travis.encodeTravisData
-                    v.travis
-                )
-            )
-          )
-        , ( "preferences", encodePreferences v.preferences )
-        ]
+                |> JE.list
+    in
+        JE.object
+            [ ( "builds", builds )
+            , ( "preferences", encodePreferences v.preferences )
+            ]
 
 
 getBuildName : BuildDef -> String
@@ -234,37 +254,24 @@ getBuildName buildDef =
         TravisDef _ d ->
             d.repository ++ "/" ++ d.branch
 
+
 getDefId : BuildDef -> Int
 getDefId buildDef =
     case buildDef of
         BambooDef i _ -> i
         TravisDef i _ -> i
 
+
 createPersistedData : Preferences -> List Build -> PersistedData
 createPersistedData prefs builds =
-    { bamboo =
+    { builds =
         builds
-            |> List.filter (\b ->
-                case b.def of
-                    BambooDef _ d -> True
-                    _ -> False
-            )
             |> List.map (\b ->
                 case b.def of
-                    BambooDef _ d -> d
-                    _ -> Debug.crash "damnit"
-            )
-    , travis =
-        builds
-            |> List.filter (\b ->
-                case b.def of
-                    TravisDef _ d -> True
-                    _ -> False
-            )
-            |> List.map (\b ->
-                case b.def of
-                    TravisDef _ d -> d
-                    _ -> Debug.crash "damnit"
+                    BambooDef i d ->
+                        PersistedBambooBuild d
+                    TravisDef i d ->
+                        PersistedTravisBuild d
             )
     , preferences = prefs
     }

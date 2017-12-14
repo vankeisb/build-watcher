@@ -7,6 +7,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onWithOptions)
 import Json.Decode as Json
+import Json.Encode
 import Material.Button as Button
 import Material.Color as Color
 import Material.Dialog as Dialog
@@ -54,17 +55,16 @@ view model =
                     [ Icon.view "remove_red_eye"
                         [ css "padding-right" "12px"
                         ]
-                    , span [] [ text <| model.flags.appName ]
                     , span []
                         [ case model.view of
                             BuildListView ->
-                                text ""
+                                text model.flags.appName
                             AddBuildView ->
                                 case model.addBuildData.editing of
                                     Just build ->
-                                        text " / edit"
+                                        text <| getBuildName build.def
                                     Nothing ->
-                                        text " / add"
+                                        text "Add"
                         ]
                     ]
                 , Layout.spacer
@@ -75,9 +75,25 @@ view model =
                             , Menu.ripple
                             ]
                             [ Menu.item
+                                [ Menu.onSelect <| BuildsViewMsg BVAddBuildClicked
+                                , padding
+                                ]
+                                [ i "add"
+                                , text "Add builds"
+                                ]
+                            , Menu.item
+                                [ Dialog.openOn "click"
+                                , Menu.onSelect <| BuildsViewMsg BVShareAllClicked
+                                , padding
+                                ]
+                                [ i "share"
+                                , text "Share builds"
+                                ]
+                            , Menu.item
                                 [ Dialog.openOn "click"
                                 , Menu.onSelect <| BuildsViewMsg BVPrefsClicked
                                 , padding
+                                , Menu.divider
                                 ]
                                 [ i "build"
                                 , text "Preferences"
@@ -251,6 +267,15 @@ viewDefAndResult model index b =
                     , text "Duplicate"
                     ]
                 , Menu.item
+                    [ Dialog.openOn "click"
+                    , Menu.onSelect <| BuildsViewMsg (BVShareClicked b)
+                    , padding
+                    , Menu.divider
+                    ]
+                    [ i "share"
+                    , text "Share"
+                    ]
+                , Menu.item
                     [ Menu.onSelect <| BuildsViewMsg (BVDeleteClicked b)
                     ]
                     [ i "delete"
@@ -263,109 +288,90 @@ viewDefAndResult model index b =
 
 viewBuildList : Model -> List (Html Msg)
 viewBuildList model =
-    let
-        addButtonDiv =
-          div
-          []
-          [ Button.render Mdl [0] model.mdl
-              [ Button.fab
-              , Button.ripple
-              , Button.colored
-              , Options.onClick <| BuildsViewMsg BVAddBuildClicked
-              , css "position" "fixed"
-              , css "bottom" "24px"
-              , css "right" "24px"
-              ]
-              [ Icon.i "add"]
-          ]
-    in
-        [
-            if List.isEmpty model.builds then
-                div
+    [
+        if List.isEmpty model.builds then
+            div
+                [ style
+                    [ position "absolute"
+                    , top0
+                    , bottom0
+                    , left0
+                    , right0
+                    , displayFlex
+                    ]
+                ]
+                [ div
                     [ style
-                        [ position "absolute"
-                        , top0
-                        , bottom0
-                        , left0
-                        , right0
-                        , displayFlex
+                        [ displayFlex
+                        , alignItemsCenter
+                        , flexGrow
                         ]
                     ]
-                    [ div
-                        [ style
-                            [ displayFlex
-                            , alignItemsCenter
-                            , flexGrow
-                            ]
+                    [ Options.styled p
+                        [ Typo.center
+                        , Typo.subhead
+                        , css "width" "100%"
                         ]
-                        [ Options.styled p
-                            [ Typo.center
-                            , Typo.subhead
-                            , css "width" "100%"
-                            ]
-                            [ text <|
-                                if model.dataFileNotFound then
-                                    "Welcome to " ++ model.flags.appName ++ " ! Add builds using the bottom-right button."
+                        [ text <|
+                            if model.dataFileNotFound then
+                                "Welcome to " ++ model.flags.appName ++ " ! Add builds using the main menu."
+                            else
+                                if String.isEmpty model.filterText then
+                                    "No builds are monitored. Add builds using main menu."
                                 else
-                                    if String.isEmpty model.filterText then
-                                        "No builds are monitored. Add builds using the bottom-right button."
-                                    else
-                                        "No builds matching criteria"
-                            ]
+                                    "No builds matching criteria"
                         ]
-                    , addButtonDiv
                     ]
-            else
-                div
+                ]
+        else
+            div
+                [ style
+                    [ positionAbsolute
+                    , top0
+                    , bottom0
+                    , right0
+                    , left0
+                    , ( "overflow", "hidden" )
+                    , displayFlex
+                    ]
+                ]
+                [ div
                     [ style
-                        [ positionAbsolute
-                        , top0
-                        , bottom0
-                        , right0
-                        , left0
-                        , ( "overflow", "hidden" )
-                        , displayFlex
+                        [ displayFlex
+                        , flexColumn
+                        , flexGrow
                         ]
                     ]
                     [ div
+                        []
+                        [ viewSearchBar model ]
+                    , div
                         [ style
-                            [ displayFlex
-                            , flexColumn
-                            , flexGrow
+                            [ flexGrow
+                            , positionRelative
                             ]
                         ]
                         [ div
-                            []
-                            [ viewSearchBar model ]
-                        , div
                             [ style
-                                [ flexGrow
-                                , positionRelative
+                                [ positionAbsolute
+                                , top0
+                                , bottom0
+                                , right0
+                                , left0
+                                , ( "overflow-y", "auto" )
                                 ]
                             ]
-                            [ div
-                                [ style
-                                    [ positionAbsolute
-                                    , top0
-                                    , bottom0
-                                    , right0
-                                    , left0
-                                    , ( "overflow-y", "auto" )
-                                    ]
-                                ]
-                                [ Lists.ul []
-                                    ( model.builds
-                                        |> List.filter (\b -> not b.filtered)
-                                        |> List.indexedMap
-                                            (viewDefAndResult model)
-                                    )
-                                ]
+                            [ Lists.ul []
+                                ( model.builds
+                                    |> List.filter (\b -> not b.filtered)
+                                    |> List.indexedMap
+                                        (viewDefAndResult model)
+                                )
                             ]
                         ]
-                        , addButtonDiv
                     ]
-        ]
-
+                ]
+    ]
 
 
 viewSearchBar : Model -> Html Msg
@@ -381,7 +387,7 @@ viewSearchBar model =
                 ]
             ]
             [ Textfield.render Mdl [ 100 ] model.mdl
-                [ Textfield.label "Filter..."
+                [ Textfield.label "Filter builds..."
                 , Options.css "flex-grow" "1"
                 , Options.onInput (\s -> BuildsViewMsg (BVFilterChanged s))
                 , Textfield.value model.filterText
@@ -418,7 +424,7 @@ viewAddTabs model =
         Just build ->
             text ""
         Nothing ->
-            Tabs.render Mdl [1] model.mdl
+            Tabs.render Mdl [3] model.mdl
                 [ Tabs.ripple
                 , Tabs.activeTab model.addBuildData.tab
                 ,
@@ -438,6 +444,10 @@ viewAddTabs model =
                     ]
                     [ text "Travis"
                     ]
+                , Tabs.label
+                    [ Options.center
+                    ]
+                    [ text "Import JSON"]
                 ]
                 []
 
@@ -446,14 +456,21 @@ viewAddBuild : Model -> List (Html Msg)
 viewAddBuild model =
     let
         (rows, canSave) =
-            if model.addBuildData.tab == 0 then
-                ( bambooRows model
-                , Bamboo.canSave model.addBuildData.bamboo
-                )
-            else
-                ( travisRows model
-                , Travis.canSave model.addBuildData.travis
-                )
+            case model.addBuildData.tab of
+                0 ->
+                    ( bambooRows model
+                    , Bamboo.canSave model.addBuildData.bamboo
+                    )
+                1 ->
+                    ( travisRows model
+                    , Travis.canSave model.addBuildData.travis
+                    )
+                2 ->
+                    ( importBuildRows model
+                    , not <| String.isEmpty model.addBuildData.importText
+                    )
+                _ ->
+                    Debug.crash "unhandled tab"
     in
         [ viewAddTabs model
         , Grid.grid
@@ -461,7 +478,7 @@ viewAddBuild model =
             ( rows ++
                 [ Grid.cell
                     [ Grid.size Grid.All 6 ]
-                    [ Button.render Mdl [10] model.mdl
+                    [ Button.render Mdl [5, 0] model.mdl
                         [ Button.primary
                         , Button.raised
                         , Button.ripple
@@ -479,7 +496,7 @@ viewAddBuild model =
                     ]
                 , Grid.cell
                     [ Grid.size Grid.All 6 ]
-                    [ Button.render Mdl [11] model.mdl
+                    [ Button.render Mdl [5, 1] model.mdl
                         [ Button.flat
                         , Button.ripple
                         , Options.onClick <| AddBuildViewMsg ABCancelClicked
@@ -537,7 +554,7 @@ bambooRows model =
     in
         [ formRow <|
             withHelp "URL (and port if any) of the Bamboo server" <|
-            Textfield.render Mdl [2] model.mdl
+            Textfield.render Mdl [6, 0] model.mdl
                 ( tfOpts
                     [ Textfield.label "Server URL"
                     , Textfield.value bamboo.serverUrl
@@ -548,7 +565,7 @@ bambooRows model =
                 []
         , formRow <|
             withHelp "Plan key, usually looks like FOO-BAR" <|
-            Textfield.render Mdl [3] model.mdl
+            Textfield.render Mdl [6, 1] model.mdl
                 ( tfOpts
                     [ Textfield.label "Plan"
                     , Textfield.value bamboo.plan
@@ -559,7 +576,7 @@ bambooRows model =
                 []
         , formRow <|
             withHelp "Bamboo username (if auth needed)" <|
-            Textfield.render Mdl [4] model.mdl
+            Textfield.render Mdl [6, 2] model.mdl
                 ( tfOpts
                     [ Textfield.label "Username"
                     , Textfield.value bamboo.username
@@ -569,7 +586,7 @@ bambooRows model =
                 []
         , formRow <|
             withHelp "Bamboo password (if auth needed)" <|
-            Textfield.render Mdl [5] model.mdl
+            Textfield.render Mdl [6, 3] model.mdl
                 ( tfOpts
                     [ Textfield.label "Password"
                     , Textfield.value bamboo.password
@@ -579,6 +596,23 @@ bambooRows model =
                 []
         ]
 
+
+importBuildRows : Model -> List (Grid.Cell Msg)
+importBuildRows model =
+    [ formRow <|
+        withHelp "Build JSON can is obtained by \"Sharing\" builds." <|
+        Textfield.render Mdl [7] model.mdl
+            ( tfOpts
+                [ Textfield.label "Paste JSON data here"
+                , Textfield.floatingLabel
+                , Textfield.value model.addBuildData.importText
+                , Textfield.textarea
+                , Textfield.rows 10
+                , Options.onInput <| onInputAbv ABImportTextChanged
+                ]
+            )
+            []
+    ]
 
 travisRows : Model -> List (Grid.Cell Msg)
 travisRows model =
@@ -590,7 +624,7 @@ travisRows model =
     in
         [ formRow <|
             withHelp "URL of the Travis server (e.g. https://travis.org)" <|
-            Textfield.render Mdl [6] model.mdl
+            Textfield.render Mdl [8, 1] model.mdl
                 ( tfOpts
                     [ Textfield.label "Server URL"
                     , Textfield.value travis.serverUrl
@@ -601,7 +635,7 @@ travisRows model =
                 []
         , formRow <|
             withHelp "The repository (e.g. rails/rails)" <|
-            Textfield.render Mdl [7] model.mdl
+            Textfield.render Mdl [8, 2] model.mdl
                 ( tfOpts
                     [ Textfield.label "Repository"
                     , Textfield.value travis.repository
@@ -612,7 +646,7 @@ travisRows model =
                 []
         , formRow <|
             withHelp "Branch to watch (e.g. master)" <|
-            Textfield.render Mdl [8] model.mdl
+            Textfield.render Mdl [8, 3] model.mdl
                 ( tfOpts
                     [ Textfield.label "Branch"
                     , Textfield.floatingLabel
@@ -625,7 +659,7 @@ travisRows model =
                 []
         , formRow <|
             withHelp "Travis token if needed (as provided by the travis cmd line)" <|
-            Textfield.render Mdl [9] model.mdl
+            Textfield.render Mdl [8, 4] model.mdl
                 ( tfOpts
                     [ Textfield.label "Token"
                     , Textfield.value travis.token
@@ -642,6 +676,7 @@ dialog model =
         AboutDialog -> aboutDialog model
         PreferencesDialog -> preferencesDialog model
         FetchErrorDialog build -> fetchErrorDialog model build
+        ShareBuildDialog builds -> shareBuildDialog model builds
 
 
 aboutDialog : Model -> Html Msg
@@ -679,7 +714,7 @@ aboutDialog model =
             ]
         , Dialog.actions []
             [ Button.render Mdl
-                [ 20 ]
+                [ 14 ]
                 model.mdl
                 [ Dialog.closeOn "click" ]
                 [ text "Dismiss" ]
@@ -698,7 +733,7 @@ preferencesDialog model =
                     [ text "Enable notifications"
                     ]
                 )
-                ( Toggles.switch Mdl [0] model.mdl
+                ( Toggles.switch Mdl [9, 1] model.mdl
                     [ Options.onToggle <| BuildsViewMsg BVPrefsToggleNotif
                     , Toggles.ripple
                     , Toggles.value model.preferences.enableNotifications
@@ -709,7 +744,7 @@ preferencesDialog model =
                 [ css "height" "18px"
                 ]
                 []
-            , Textfield.render Mdl [ 22 ] model.mdl
+            , Textfield.render Mdl [9, 2] model.mdl
                 [ Textfield.label "Polling interval (seconds)"
                 , Textfield.floatingLabel
                 , Textfield.text_
@@ -722,7 +757,7 @@ preferencesDialog model =
             ]
         , Dialog.actions []
             [ Button.render Mdl
-                [ 21 ]
+                [ 9, 3 ]
                 model.mdl
                 [ Dialog.closeOn "click" ]
                 [ text "Done" ]
@@ -750,7 +785,7 @@ fetchErrorDialog model build =
                     ]
                 , Dialog.actions []
                     [ Button.render Mdl
-                        [ 23 ]
+                        [ 18 ]
                         model.mdl
                         [ Dialog.closeOn "click" ]
                         [ text "Got it" ]
@@ -758,3 +793,66 @@ fetchErrorDialog model build =
                 ]
         Nothing ->
             text ""
+
+
+shareBuildDialog : Model -> List Build -> Html Msg
+shareBuildDialog model builds =
+    let
+        json =
+            Json.Encode.encode 4 <|
+                Json.Encode.list <|
+                    List.map
+                    ( \b -> case b.def of
+                        BambooDef _ d ->
+                            Bamboo.encodeBambooData False d
+                        TravisDef _ d ->
+                            Travis.encodeTravisData False d
+                    )
+                    builds
+    in
+        Dialog.view
+            []
+            [ Dialog.title [] [ text "Share" ]
+            , Dialog.content []
+                [ p []
+                    [ text
+                        <| "Copy the data below, and send it via email/chat/whatever. "
+                            ++ "The recipient will then be able to import it. "
+                    ]
+                , Textfield.render Mdl [9] model.mdl
+                    [ Textfield.textarea
+                    , Textfield.rows 9
+                    , Textfield.value json
+                    , Options.id "export-data"
+                    ]
+                    []
+                , model.addBuildData.importError
+                    |> Maybe.map (\importError ->
+                        p []
+                            [ text <|
+                                "Error importing project : " ++ (toString importError)
+                            ]
+                    )
+                    |> Maybe.withDefault (text "")
+                ]
+            , Dialog.actions []
+                [ div
+                    [ style
+                        [ displayFlex
+                        ]
+                    ]
+                    [ div
+                        [ style
+                            [ flexGrow ]
+                        ]
+                        [ Button.render Mdl [ 19 ] model.mdl
+                            [ Options.onClick <| CopyToClipboard json
+                            ]
+                            [ text "Copy" ]
+                        , Button.render Mdl [ 20 ] model.mdl
+                            [ Dialog.closeOn "click" ]
+                            [ text "Dismiss" ]
+                        ]
+                    ]
+                ]
+            ]

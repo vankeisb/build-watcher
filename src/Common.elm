@@ -17,9 +17,12 @@ type alias BuildResult =
     }
 
 
-stringOrEmpty : Decoder String
-stringOrEmpty =
-    oneOf [ string, succeed "" ]
+stringOrEmpty : String -> Decoder String
+stringOrEmpty f =
+    oneOf
+        [ field f string
+        , succeed ""
+        ]
 
 
 validateRequired : String -> Maybe String

@@ -18,7 +18,7 @@ let mainWindow
 
 let willQuitApp = false;
 
-const isDevEnv = false;
+const isDevEnv = true;
 
 function createWindow () {
   // Create the browser window.

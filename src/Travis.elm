@@ -161,17 +161,22 @@ travisDataDecoder : Decoder TravisData
 travisDataDecoder =
     map5 TravisData
         (field "serverUrl" string)
-        (field "token" stringOrEmpty)
+        (stringOrEmpty "token")
         (field "repository" string)
         (field "branch" string)
         (succeed Nothing)
 
 
-encodeTravisData : TravisData -> Value
-encodeTravisData v =
-    JE.object
-        [ ( "serverUrl", JE.string v.serverUrl )
-        , ( "token", JE.string v.token )
+
+encodeTravisData : Bool -> TravisData -> Value
+encodeTravisData includeCredentials v =
+    JE.object <|
+        [ ( "kind", JE.string "travis" )
+        , ( "serverUrl", JE.string v.serverUrl )
         , ( "repository", JE.string v.repository )
         , ( "branch", JE.string v.branch )
-        ]
+        ] ++
+            if includeCredentials then
+                [ ( "token", JE.string v.token ) ]
+            else
+                []

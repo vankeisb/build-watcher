@@ -68,6 +68,13 @@ a.ports.quit.subscribe(function() {
     })
 })
 
+a.ports.copyToClipboard.subscribe(function(msg) {
+    const n = document.getElementById(msg.nodeId);
+    n.select();
+    document.execCommand("copy");
+    a.ports.onCopiedToClipboard.send(msg.nodeId);
+})
+
 ipcRenderer.on('main-msg', (event, arg) => {
     if (arg.kind === 'data-loaded') {
         if (arg.success) {

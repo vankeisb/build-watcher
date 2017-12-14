@@ -76,29 +76,26 @@ update msg model =
                 case persistedDataRes of
                     Ok persistedData ->
                         let
-                            bambooBuilds =
-                                persistedData.bamboo
-                                    |> List.indexedMap BambooDef
-
-                            nbBamboo =
-                                List.length bambooBuilds
-
-                            travisBuilds =
-                                persistedData.travis
-                                    |> List.indexedMap (\i d -> TravisDef (i + nbBamboo) d)
+                            builds =
+                                persistedData.builds
+                                    |> List.indexedMap (\i pb ->
+                                        case pb of
+                                            PersistedBambooBuild d ->
+                                                BambooDef i d
+                                            PersistedTravisBuild d ->
+                                                TravisDef i d
+                                    )
+                                    |> List.map defaultBuild
+                                    |> List.sortBy (\b ->
+                                        getBuildName b.def
+                                    )
                         in
                             (
                                 { model
-                                    | builds =
-                                        (bambooBuilds ++ travisBuilds)
-                                            |> List.map defaultBuild
-                                            |> List.sortBy (\b ->
-                                                getBuildName b.def
-                                            )
+                                    | builds = builds
                                     , loaded = True
                                     , preferences = persistedData.preferences
-                                    , counter =
-                                        nbBamboo + (List.length travisBuilds)
+                                    , counter = List.length builds
                                 }
                                 |> applyFilter
                             , fetchNow
@@ -185,6 +182,16 @@ update msg model =
             , Ports.openURL u
             )
 
+        CopyToClipboard s ->
+            ( model
+            , Ports.copyToClipboard
+                { nodeId = "export-data"
+                , data = s
+                }
+            )
+
+        OnCopiedToClipboard nodeId ->
+            addToast "Copied to clipboard" model
 
         -- Boilerplate: Mdl action handler.
         Mdl msg_ ->
@@ -209,6 +216,7 @@ fetch build time =
         )
         |> Task.attempt (FetchResult build.def)
     )
+
 
 fetchNow : Cmd Msg
 fetchNow =
@@ -289,11 +297,41 @@ updateAddBuildView abvm model =
                 newCounter =
                     model.counter + 1
 
-                newDef =
-                    if abd.tab == 0 then
-                        BambooDef newCounter (sanitize abd.bamboo)
-                    else
-                        TravisDef newCounter (sanitize abd.travis)
+                (newDefs, importError) =
+                    case abd.tab of
+                        0 ->
+                            ( [ BambooDef newCounter (sanitize abd.bamboo) ]
+                            , Nothing
+                            )
+                        1 ->
+                            ( [ TravisDef newCounter (sanitize abd.travis) ]
+                            , Nothing
+                            )
+                        2 ->
+                            let
+                                decoded =
+                                    abd.importText
+                                        |> Json.decodeString (Json.list persistedBuildDecoder)
+                                parsedBuildDefs =
+                                    decoded
+                                        |> Result.map (
+                                            List.indexedMap (\i pb ->
+                                                case pb of
+                                                    PersistedBambooBuild d ->
+                                                        BambooDef (i + newCounter) d
+                                                    PersistedTravisBuild d ->
+                                                        TravisDef (i + newCounter) d
+                                            )
+                                        )
+                                        |> Result.withDefault []
+                                error =
+                                    case decoded of
+                                        Ok _ -> Nothing
+                                        Err e -> Debug.crash e
+                            in
+                                ( parsedBuildDefs, error )
+                        _ ->
+                            Debug.crash "TODO"
 
                 newBuilds =
                     ( case abd.editing of
@@ -301,29 +339,41 @@ updateAddBuildView abvm model =
                             model.builds
                                 |> List.map (\b ->
                                     if getDefId b.def == getDefId build.def then
-                                        defaultBuild newDef
+                                        newDefs
+                                            |> List.head
+                                            |> Maybe.map defaultBuild
+                                            |> Maybe.withDefault b
                                     else
                                         b
                                 )
                         Nothing ->
                             model.builds ++
-                                [ defaultBuild newDef
-                                ]
+                                ( newDefs
+                                    |> List.map defaultBuild
+                                )
                     )
                     |> List.sortBy (\b ->
                         getBuildName b.def
                     )
             in
                 updateBuildsAndSave
-                    ( { model | counter = newCounter }
+                    (
+                        { model
+                            | counter = model.counter + (List.length newDefs)
+                            , addBuildData =
+                                { abd | importError = importError }
+                        }
                         |> applyFilter
                     )
                     newBuilds
                     ( case abd.editing of
                         Just editedBuild ->
-                            "Build " ++ (getBuildName newDef) ++ " updated"
+                            "Build " ++ (getBuildName editedBuild.def) ++ " updated"
                         Nothing ->
-                            "Build added : " ++ (getBuildName newDef)
+                            if List.length newDefs == 1 then
+                                "Build added"
+                            else
+                                (toString <| List.length newDefs) ++ " build(s) added"
                     )
 
         ABBambooServerUrlChanged s ->
@@ -414,6 +464,21 @@ updateAddBuildView abvm model =
             , Cmd.none
             )
 
+        ABImportTextChanged s ->
+            let
+                abd =
+                    model.addBuildData
+                newAbd =
+                    { abd
+                        | importText = s
+                    }
+            in
+                (
+                    { model
+                        | addBuildData = newAbd
+                    }
+                , Cmd.none
+                )
 
 
 updateBuildsView : BVMsg -> Model -> (Model, Cmd Msg)
@@ -459,7 +524,7 @@ updateBuildsView bvm model =
                         | builds = newBuilds
                     }
                 , Cmd.batch
-                    [ Ports.saveData newPersistedData
+                    [ save newPersistedData
                     , c
                     ]
                 )
@@ -492,6 +557,9 @@ updateBuildsView bvm model =
 
         BVPrefsClicked ->
             ({ model | dialogKind = PreferencesDialog }, Cmd.none)
+
+        BVShareClicked build ->
+            ({ model | dialogKind = ShareBuildDialog [ build ] }, Cmd.none)
 
         BVPrefsToggleNotif ->
             updatePrefsAndSave
@@ -546,6 +614,14 @@ updateBuildsView bvm model =
         BVSearch ->
             doFilter model model.filterText
 
+        BVShareAllClicked ->
+            (
+                { model
+                    | dialogKind = ShareBuildDialog model.builds
+                }
+            , Cmd.none
+            )
+
 
 applyFilter : Model -> Model
 applyFilter model =
@@ -588,12 +664,11 @@ updateBuildsAndSave model newBuilds toastText =
                 , view = BuildListView
             }
         , Cmd.batch
-            [ Ports.saveData newPersistedData
+            [ save newPersistedData
             , c
             , fetchNow
             ]
         )
-
 
 
 updatePrefsAndSave : Model -> (Preferences -> Preferences) -> (Model, Cmd Msg)
@@ -607,7 +682,7 @@ updatePrefsAndSave model f =
                 | preferences = newPrefs
             }
         , createPersistedData newPrefs model.builds
-            |> Ports.saveData
+            |> save
         )
 
 
@@ -671,6 +746,12 @@ desktopNotifIfBuildStateChanged model build =
         Cmd.none
 
 
+save : PersistedData -> Cmd m
+save p =
+    encodePersistedData p
+        |> Ports.saveData
+
+
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch <|
@@ -689,4 +770,5 @@ subscriptions model =
         , Ports.onDataLoadSuccess OnDataLoadSuccess
         , Ports.onDataSaveError OnDataSaveError
         , Ports.onDataSaveSuccess OnDataSaveSuccess
+        , Ports.onCopiedToClipboard OnCopiedToClipboard
         ]

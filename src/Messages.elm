@@ -20,6 +20,8 @@ type ABVMsg
     | ABTravisTokenChanged String
     | ABTravisRepoChanged String
     | ABTravisBranchChanged String
+    | ABImportTextChanged String
+
 
 type BVMsg
     = BVAddBuildClicked
@@ -36,6 +38,8 @@ type BVMsg
     | BVFilterChanged String
     | BVSearch
     | BVClearFilter
+    | BVShareClicked Build
+    | BVShareAllClicked
 
 
 type Msg
@@ -51,3 +55,5 @@ type Msg
     | OnDataSaveSuccess DataSaveSuccess
     | Snackbar (Snackbar.Msg Int)
     | OpenUrl String
+    | CopyToClipboard String
+    | OnCopiedToClipboard String

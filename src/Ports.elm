@@ -1,7 +1,6 @@
 port module Ports exposing (..)
 
 import Json.Decode exposing (..)
-import Model exposing (PersistedData, encodePersistedData)
 
 port onDataLoadSuccess : (String -> m) -> Sub m
 
@@ -30,8 +29,7 @@ type alias DataSaveSuccess =
 
 port onDataSaveSuccess : (DataSaveSuccess -> m) -> Sub m
 
-
-port saveData : PersistedData -> Cmd m
+port saveData : Value -> Cmd m
 
 port loadData : () -> Cmd m
 
@@ -46,3 +44,12 @@ type alias DesktopNotif =
 port desktopNotification : DesktopNotif -> Cmd m
 
 port quit : () -> Cmd m
+
+type alias CopyInput =
+    { nodeId : String
+    , data : String
+    }
+
+port copyToClipboard : CopyInput -> Cmd m
+
+port onCopiedToClipboard : (String -> m) -> Sub m
