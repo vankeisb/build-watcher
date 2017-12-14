@@ -2,6 +2,7 @@ module Update exposing (..)
 
 import Bamboo
 import Common exposing (Status(Green), Status(Red), Status(Unknown), validateRequired)
+import Dom exposing (focus)
 import Json.Decode as Json
 import Material
 import Material.Helpers exposing (map1st, map2nd)
@@ -609,7 +610,11 @@ updateBuildsView bvm model =
             doFilter model s
 
         BVClearFilter ->
-            doFilter model ""
+            doFilter
+                { model
+                    | filterVisible = False
+                }
+                ""
 
         BVSearch ->
             doFilter model model.filterText
@@ -622,6 +627,15 @@ updateBuildsView bvm model =
             , Cmd.none
             )
 
+        BVShowFilterClicked ->
+            ( { model | filterVisible = True }
+            , focus "filter-box"
+                |> Task.attempt (\r -> BuildsViewMsg BVFilterFocusResult)
+            )
+
+        BVFilterFocusResult ->
+            -- do nothing !
+            model ! []
 
 applyFilter : Model -> Model
 applyFilter model =

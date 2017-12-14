@@ -70,53 +70,72 @@ view model =
                 , Layout.spacer
                 , case model.view of
                     BuildListView ->
-                        Menu.render Mdl [0] model.mdl
-                            [ Menu.bottomRight
-                            , Menu.ripple
+                        div
+                            [ style
+                                [ displayFlex
+                                , alignItemsCenter
+                                ]
                             ]
-                            [ Menu.item
-                                [ Menu.onSelect <| BuildsViewMsg BVAddBuildClicked
-                                , padding
+                            [ Button.render Mdl [0, 0] model.mdl
+                                [ Button.icon
+                                , Button.ripple
+                                , Options.onClick <| BuildsViewMsg BVShowFilterClicked
                                 ]
-                                [ i "add"
-                                , text "Add builds"
+                                [ Icon.i "search"
                                 ]
-                            , Menu.item
-                                [ Dialog.openOn "click"
-                                , Menu.onSelect <| BuildsViewMsg BVShareAllClicked
-                                , padding
+                            , Menu.render Mdl [0, 1] model.mdl
+                                [ Menu.bottomRight
+                                , Menu.ripple
                                 ]
-                                [ i "share"
-                                , text "Share builds"
-                                ]
-                            , Menu.item
-                                [ Dialog.openOn "click"
-                                , Menu.onSelect <| BuildsViewMsg BVPrefsClicked
-                                , padding
-                                , Menu.divider
-                                ]
-                                [ i "build"
-                                , text "Preferences"
-                                ]
-                            , Menu.item
-                                [ Dialog.openOn "click"
-                                , Menu.onSelect <| BuildsViewMsg BVAboutClicked
-                                , padding
-                                ]
-                                [ i "help"
-                                , text "About"
-                                ]
-                            , Menu.item
-                                [ Menu.onSelect <| BuildsViewMsg BVQuitClicked
-                                , padding
-                                ]
-                                [ i "close"
-                                , text "Quit"
+                                [ Menu.item
+                                    [ Menu.onSelect <| BuildsViewMsg BVAddBuildClicked
+                                    ]
+                                    [ i "add"
+                                    , text "Add builds"
+                                    ]
+                                , Menu.item
+                                    [ Dialog.openOn "click"
+                                    , Menu.onSelect <| BuildsViewMsg BVShareAllClicked
+                                    , padding
+                                    ]
+                                    [ i "share"
+                                    , text "Share builds"
+                                    ]
+                                , Menu.item
+                                    [ Dialog.openOn "click"
+                                    , Menu.onSelect <| BuildsViewMsg BVPrefsClicked
+                                    , padding
+                                    , Menu.divider
+                                    ]
+                                    [ i "build"
+                                    , text "Preferences"
+                                    ]
+                                , Menu.item
+                                    [ Dialog.openOn "click"
+                                    , Menu.onSelect <| BuildsViewMsg BVAboutClicked
+                                    , padding
+                                    ]
+                                    [ i "help"
+                                    , text "About"
+                                    ]
+                                , Menu.item
+                                    [ Menu.onSelect <| BuildsViewMsg BVQuitClicked
+                                    , padding
+                                    ]
+                                    [ i "close"
+                                    , text "Quit"
+                                    ]
                                 ]
                             ]
 
                     AddBuildView ->
-                        text ""
+                        Button.render Mdl [0, 2] model.mdl
+                            [ Button.icon
+                            , Button.ripple
+                            , Options.onClick <| AddBuildViewMsg ABCancelClicked
+                            ]
+                            [ Icon.i "close"
+                            ]
                 ]
             ]
         , drawer = []
@@ -379,6 +398,11 @@ viewSearchBar model =
     Options.div
         [ Elevation.e2
         , css "padding" "8px"
+        , css "display" <|
+            if model.filterVisible then
+                "block"
+            else
+                "none"
         ]
         [ div
             [ style
@@ -391,6 +415,7 @@ viewSearchBar model =
                 , Options.css "flex-grow" "1"
                 , Options.onInput (\s -> BuildsViewMsg (BVFilterChanged s))
                 , Textfield.value model.filterText
+                , Options.id "filter-box"
                 ]
                 []
             , div
@@ -477,7 +502,7 @@ viewAddBuild model =
             []
             ( rows ++
                 [ Grid.cell
-                    [ Grid.size Grid.All 6 ]
+                    [ Grid.size Grid.All 12 ]
                     [ Button.render Mdl [5, 0] model.mdl
                         [ Button.primary
                         , Button.raised
@@ -493,16 +518,6 @@ viewAddBuild model =
                                 Nothing ->
                                     "Add"
                         ]
-                    ]
-                , Grid.cell
-                    [ Grid.size Grid.All 6 ]
-                    [ Button.render Mdl [5, 1] model.mdl
-                        [ Button.flat
-                        , Button.ripple
-                        , Options.onClick <| AddBuildViewMsg ABCancelClicked
-                        , css "width" "100%"
-                        ]
-                        [ text "Cancel" ]
                     ]
                 ]
             )

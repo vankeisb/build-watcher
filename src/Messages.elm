@@ -40,6 +40,8 @@ type BVMsg
     | BVClearFilter
     | BVShareClicked Build
     | BVShareAllClicked
+    | BVShowFilterClicked
+    | BVFilterFocusResult
 
 
 type Msg

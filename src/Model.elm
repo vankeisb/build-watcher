@@ -142,6 +142,7 @@ type alias Model =
     , preferences : Preferences
     , counter : Int
     , filterText : String
+    , filterVisible : Bool
     }
 
 
@@ -161,6 +162,7 @@ initialModel flags =
     , preferences = initialPreferences
     , counter = 0
     , filterText = ""
+    , filterVisible = False
     }
 
 
