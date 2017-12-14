@@ -36,7 +36,6 @@ type BVMsg
     | BVQuitClicked
     | BVCopyClicked Build
     | BVFilterChanged String
-    | BVSearch
     | BVClearFilter
     | BVShareClicked Build
     | BVShareAllClicked

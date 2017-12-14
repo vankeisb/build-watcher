@@ -616,9 +616,6 @@ updateBuildsView bvm model =
                 }
                 ""
 
-        BVSearch ->
-            doFilter model model.filterText
-
         BVShareAllClicked ->
             (
                 { model

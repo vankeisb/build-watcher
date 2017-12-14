@@ -76,13 +76,17 @@ view model =
                                 , alignItemsCenter
                                 ]
                             ]
-                            [ Button.render Mdl [0, 0] model.mdl
-                                [ Button.icon
-                                , Button.ripple
-                                , Options.onClick <| BuildsViewMsg BVShowFilterClicked
-                                ]
-                                [ Icon.i "search"
-                                ]
+                            [
+                                if not model.filterVisible then
+                                    Button.render Mdl [0, 0] model.mdl
+                                        [ Button.icon
+                                        , Button.ripple
+                                        , Options.onClick <| BuildsViewMsg BVShowFilterClicked
+                                        ]
+                                        [ Icon.i "search"
+                                        ]
+                                else
+                                    text ""
                             , Menu.render Mdl [0, 1] model.mdl
                                 [ Menu.bottomRight
                                 , Menu.ripple
@@ -424,14 +428,7 @@ viewSearchBar model =
                     , alignItemsCenter
                     ]
                 ]
-                [ Button.render Mdl [ 101 ] model.mdl
-                    [ Button.ripple
-                    , Button.icon
-                    , Options.onClick <| BuildsViewMsg BVSearch
-                    ]
-                    [ Icon.i "search"
-                    ]
-                , Button.render Mdl [ 102 ] model.mdl
+                [ Button.render Mdl [ 102 ] model.mdl
                     [ Button.ripple
                     , Button.icon
                     , Options.onClick <| BuildsViewMsg BVClearFilter
