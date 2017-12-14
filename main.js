@@ -25,10 +25,11 @@ function createWindow () {
   mainWindow = new BrowserWindow({
       width: 400,
       minWidth: 400,
-      maxWidth : 600,
+      maxWidth : isDevEnv ? 3000 : 600,
       height: 800,
       minHeight: 400,
-      icon: path.join(__dirname, 'assets/icons/png/64.png')
+      icon: path.join(__dirname, 'assets/icons/png/64.png'),
+      titleBarStyle: 'hiddenInset'
   });
 
   // and load the index.html of the app.

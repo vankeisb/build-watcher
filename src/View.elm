@@ -28,6 +28,8 @@ import Messages exposing (..)
 import Model exposing (..)
 import Style exposing (..)
 import Travis
+import Material.Chip as Chip
+import Material.Card as Card
 
 
 i : String -> Html m
@@ -43,17 +45,26 @@ view : Model -> Html Msg
 view model =
     Layout.render Mdl model.mdl
         [ Layout.fixedHeader
+        , Layout.fixedTabs
+        , Layout.selectedTab model.layoutTab
+        , Layout.onSelectTab LayoutTabClicked
         ]
         { header =
             [ Layout.row
                 [ css "padding-left" "16px"
+                , css "padding-right" "4px"
+                , css "height" "36px"
                 ]
                 [ Layout.title
                     [ css "align-items" "center"
                     , css "display" "flex"
+                    , css "flex-grow" "1"
+                    , css "justify-content" "center"
+                    , css "font-size" "14px"
                     ]
                     [ Icon.view "remove_red_eye"
                         [ css "padding-right" "12px"
+                        , css "font-size" "14px"
                         ]
                     , span []
                         [ case model.view of
@@ -67,7 +78,6 @@ view model =
                                         text "Add"
                         ]
                     ]
-                , Layout.spacer
                 , case model.view of
                     BuildListView ->
                         div
@@ -86,7 +96,8 @@ view model =
                                         [ Icon.i "search"
                                         ]
                                 else
-                                    text ""
+                                    -- fill up the space to avoid the title to move
+                                    div [ style [ ("width", "32px")] ] []
                             , Menu.render Mdl [0, 1] model.mdl
                                 [ Menu.bottomRight
                                 , Menu.ripple
@@ -143,7 +154,18 @@ view model =
                 ]
             ]
         , drawer = []
-        , tabs = ([], [])
+        , tabs =
+            (
+                case model.view of
+                    BuildListView ->
+                        [ text "Builds"
+                        , text "Tags"
+                        ]
+                    AddBuildView ->
+                        []
+            ,
+                []
+            )
         , main =
             (
             if model.loaded then
@@ -180,7 +202,7 @@ view model =
                 ]
 
         }
-        |> Material.Scheme.topWithScheme Color.BlueGrey Color.Blue
+        |> Material.Scheme.top --WithScheme Color.BlueGrey Color.Blue
 
 
 viewDefAndResult : Model -> Int -> Build -> Html Msg
@@ -212,12 +234,6 @@ viewDefAndResult model index b =
                         Nothing ->
                             ("play_circle_outline", Color.Grey)
 
-        wordWrap =
-            [ css "text-overflow" "ellipsis"
-            , css "white-space" "nowrap"
-            , css "overflow" "hidden"
-            ]
-
         padding =
             css "padding-right" "18px"
 
@@ -234,9 +250,13 @@ viewDefAndResult model index b =
                     ( Menu.disabled
                     , Options.nop
                     )
+        tags =
+            getCommonBuildData b.def
+                |> .tags
+
     in
         Lists.li
-            [ Lists.withSubtitle
+            [ Lists.withSubtitle |> Options.when (not (List.isEmpty tags))
             , css "overflow" "inherit"
             ]
             [ Lists.content
@@ -251,17 +271,28 @@ viewDefAndResult model index b =
                     [ Color.background (Color.color hue Color.S500) ]
                 , Options.div
                     wordWrap
-                    [ text <| getBuildName b.def
-                    ]
-                , Lists.subtitle
-                    wordWrap
-                    [ text <|
-                        case b.def of
-                            BambooDef _ d ->
-                                d.serverUrl
-                            TravisDef _ d ->
-                                d.serverUrl
-                    ]
+                    [ text <| getBuildName b.def ]
+                ,
+                    if List.isEmpty tags then
+                        text ""
+                    else
+                        Lists.subtitle
+                            wordWrap
+                            ( getCommonBuildData b.def
+                                |> .tags
+                                |> List.map (\tag ->
+                                    Chip.span
+                                        [ css "margin" "0px 4px 0px 0px"
+                                        , css "height" "20px"
+                                        , css "line-height" "20px"
+                                        , css "padding" "0 6px"
+                                        ]
+                                        [ Chip.content
+                                            [ css "font-size" "10px" ]
+                                            [ text tag ]
+                                        ]
+                                )
+                            )
                 ]
             , Menu.render Mdl [ 1, index ] model.mdl
                 [ Menu.bottomRight
@@ -281,6 +312,14 @@ viewDefAndResult model index b =
                     ]
                     [ i "edit"
                     , text "Edit"
+                    ]
+                , Menu.item
+                    [ Menu.onSelect <| BuildsViewMsg (BVTagsClicked b)
+                    , padding
+                    , Dialog.openOn "click"
+                    ]
+                    [ i "label_outline"
+                    , text "Tag"
                     ]
                 , Menu.item
                     [ Menu.onSelect <| BuildsViewMsg (BVCopyClicked b)
@@ -306,7 +345,6 @@ viewDefAndResult model index b =
                     ]
                 ]
             ]
-
 
 
 viewBuildList : Model -> List (Html Msg)
@@ -384,18 +422,104 @@ viewBuildList model =
                                 , ( "overflow-y", "auto" )
                                 ]
                             ]
-                            [ Lists.ul []
-                                ( model.builds
-                                    |> List.filter (\b -> not b.filtered)
-                                    |> List.indexedMap
-                                        (viewDefAndResult model)
-                                )
-                            ]
+                            (
+                                case model.layoutTab of
+                                    0 ->
+                                        [ Lists.ul []
+                                            ( model.builds
+                                                    |> List.filter (\b -> not b.filtered)
+                                                    |> List.indexedMap
+                                                        (viewDefAndResult model)
+                                            )
+                                        ]
+                                    1 ->
+                                        [ viewTags model
+                                        ]
+
+                                    _ ->
+                                        Debug.crash "unknown tab"
+                            )
                         ]
                     ]
                 ]
     ]
 
+nbCols = 2
+
+viewTags : Model -> Html Msg
+viewTags model =
+    div
+        [ style
+            [ ("display", "grid")
+            ]
+        ]
+        ( model.tagsData
+            |> split nbCols
+            |> List.indexedMap (\rowIndex row ->
+                row
+                    |> List.indexedMap (\colIndex cell ->
+                        div
+                            [ style
+                                [ ("grid-column-start", toString <| colIndex + 1)
+                                , ("grid-column-start", toString <| colIndex + 1)
+                                , ("grid-row-start", toString <| rowIndex + 1)
+                                , ("grid-row-start", toString <| rowIndex + 1)
+                                ]
+                            ]
+                            [ viewTag cell
+                            ]
+                    )
+            )
+            |> List.concat
+        )
+
+white : Options.Property c m
+white =
+  Color.text Color.white
+
+
+viewTag : TagsListItem -> Html Msg
+viewTag tagsListItem =
+    div [ style [ ("padding", "8px")] ]
+        [ Card.view
+            [ Color.background <|
+                if tagsListItem.nbRed == 0 then
+                    Color.color Color.Green Color.S500
+                else
+                    Color.color Color.Red Color.S500
+            , css "width" "100%"
+            , if tagsListItem.raised then Elevation.e8 else Elevation.e2
+            , Elevation.transition 250
+            , Options.onMouseEnter (BuildsViewMsg <| BVRaiseTag tagsListItem.tag)
+            , Options.onMouseLeave (BuildsViewMsg <| BVRaiseTag "")
+            ]
+            [ Card.title
+                []
+                [ Card.head [ white ] [ text tagsListItem.tag ] ]
+            , Card.text [ white ]
+                [ div
+                    [ style
+                         [ displayFlex
+                         , alignItemsCenter
+                         ]
+                    ]
+                    [ Icon.i "mood"
+                    , Options.span
+                        [ Typo.headline
+                        , css "padding-left" "4px"
+                        , css "padding-right" "16px"
+                        ]
+                        [ text <| toString tagsListItem.nbGreen ]
+                    , Icon.i "mood_bad"
+                    , Options.span
+                        [ Typo.headline
+                        , css "padding-left" "8px"
+                        ]
+                        [ text <| toString tagsListItem.nbRed ]
+                    ]
+                ]
+            ]
+        ]
 
 viewSearchBar : Model -> Html Msg
 viewSearchBar model =
@@ -612,7 +736,7 @@ bambooRows model =
 importBuildRows : Model -> List (Grid.Cell Msg)
 importBuildRows model =
     [ formRow <|
-        withHelp "Build JSON can is obtained by \"Sharing\" builds." <|
+        withHelp "JSON data is obtained by \"Sharing\" builds." <|
         Textfield.render Mdl [7] model.mdl
             ( tfOpts
                 [ Textfield.label "Paste JSON data here"
@@ -689,6 +813,7 @@ dialog model =
         PreferencesDialog -> preferencesDialog model
         FetchErrorDialog build -> fetchErrorDialog model build
         ShareBuildDialog builds -> shareBuildDialog model builds
+        TagsDialog buildId tagsText -> tagsDialog model buildId tagsText
 
 
 aboutDialog : Model -> Html Msg
@@ -814,11 +939,15 @@ shareBuildDialog model builds =
             Json.Encode.encode 4 <|
                 Json.Encode.list <|
                     List.map
-                    ( \b -> case b.def of
-                        BambooDef _ d ->
-                            Bamboo.encodeBambooData False d
-                        TravisDef _ d ->
-                            Travis.encodeTravisData False d
+                    ( \b ->
+                        Json.Encode.object <|
+                            case b.def of
+                            BambooDef cd d ->
+                                Bamboo.encodeBambooData False d
+                                    |> List.append [ encodeTags cd.tags ]
+                            TravisDef cd d ->
+                                Travis.encodeTravisData False d
+                                    |> List.append [ encodeTags cd.tags ]
                     )
                     builds
     in
@@ -831,7 +960,7 @@ shareBuildDialog model builds =
                         <| "Copy the data below, and send it via email/chat/whatever. "
                             ++ "The recipient will then be able to import it. "
                     ]
-                , Textfield.render Mdl [9] model.mdl
+                , Textfield.render Mdl [9, 0] model.mdl
                     [ Textfield.textarea
                     , Textfield.rows 9
                     , Textfield.value json
@@ -857,13 +986,92 @@ shareBuildDialog model builds =
                         [ style
                             [ flexGrow ]
                         ]
-                        [ Button.render Mdl [ 19 ] model.mdl
+                        [ Button.render Mdl [ 9, 1 ] model.mdl
                             [ Options.onClick <| CopyToClipboard json
                             ]
                             [ text "Copy" ]
-                        , Button.render Mdl [ 20 ] model.mdl
+                        , Button.render Mdl [ 9, 2 ] model.mdl
                             [ Dialog.closeOn "click" ]
                             [ text "Dismiss" ]
+                        ]
+                    ]
+                ]
+            ]
+
+
+tagsDialog : Model -> Int -> String -> Html Msg
+tagsDialog model buildId tagsText =
+    let
+        build =
+            getBuildById model buildId
+
+        tags =
+            case build of
+                Just b ->
+                    getCommonBuildData b.def
+                        |> .tags
+                        |> List.map (\tag ->
+                            Chip.button
+                                [ Chip.deleteIcon "cancel"
+                                , Chip.deleteClick (BuildsViewMsg (BVDeleteTagClicked tag))
+                                , css "margin" "5px 5px"
+                                ]
+                                [ Chip.content []
+                                    [ text tag ]
+                                ]
+                        )
+
+                Nothing ->
+                    [ text "build not found"
+                    ]
+    in
+        Dialog.view
+            []
+            [ Dialog.title [] [ text "Tags" ]
+            , Dialog.content []
+                [ div
+                    [ style
+                        [ displayFlex
+                        , flexColumn
+                        ]
+                    ]
+                    [ div
+                        [ style
+                            [ displayFlex
+                            , flexGrow
+                            , ( "flex-wrap", "wrap" )
+                            ]
+                        ]
+                        tags
+                    , Textfield.render Mdl [ 20, 0 ] model.mdl
+                        [ Textfield.label "Add tag(s) and press ENTER"
+                        , Textfield.floatingLabel
+                        , Options.onInput <| (\s -> BuildsViewMsg (BVTagsChanged s))
+                        , Textfield.value tagsText
+                        , Options.on
+                            "keydown"
+                            ( Json.field "keyCode" Json.int
+                                |> Json.map (\i -> BuildsViewMsg (BVTagsKeyUp i))
+                            )
+                        , css "width" "100%"
+                        ]
+                        []
+                    ]
+                ]
+            , Dialog.actions []
+                [ div
+                    [ style
+                        [ displayFlex
+                        ]
+                    ]
+                    [ div
+                        [ style
+                            [ flexGrow ]
+                        ]
+                        [ Button.render Mdl [ 20, 2 ] model.mdl
+                            [ Dialog.closeOn "click"
+                            ]
+                            [ text "Done" ]
                         ]
                     ]
                 ]

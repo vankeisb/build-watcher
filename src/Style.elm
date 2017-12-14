@@ -2,6 +2,8 @@ module Style exposing (..)
 
 import Html.Attributes exposing (style)
 import Html exposing (div)
+import Material.Options exposing (css)
+
 
 displayFlex = ("display", "flex")
 position s = ("position", s)
@@ -14,6 +16,7 @@ bottom0 = ("bottom", "0")
 alignItemsCenter = ("align-items", "center")
 flexGrow = ("flex-grow", "1")
 flexColumn = ("flex-direction", "column")
+
 
 growLeft left right =
     div
@@ -41,3 +44,9 @@ growLeft left right =
             [ right
             ]
         ]
+
+wordWrap =
+    [ css "text-overflow" "ellipsis"
+    , css "white-space" "nowrap"
+    , css "overflow" "hidden"
+    ]

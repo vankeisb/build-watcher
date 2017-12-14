@@ -168,15 +168,14 @@ travisDataDecoder =
 
 
 
-encodeTravisData : Bool -> TravisData -> Value
+encodeTravisData : Bool -> TravisData -> List (String,Value)
 encodeTravisData includeCredentials v =
-    JE.object <|
-        [ ( "kind", JE.string "travis" )
-        , ( "serverUrl", JE.string v.serverUrl )
-        , ( "repository", JE.string v.repository )
-        , ( "branch", JE.string v.branch )
-        ] ++
-            if includeCredentials then
-                [ ( "token", JE.string v.token ) ]
-            else
-                []
+    [ ( "kind", JE.string "travis" )
+    , ( "serverUrl", JE.string v.serverUrl )
+    , ( "repository", JE.string v.repository )
+    , ( "branch", JE.string v.branch )
+    ] ++
+        if includeCredentials then
+            [ ( "token", JE.string v.token ) ]
+        else
+            []

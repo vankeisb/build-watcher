@@ -147,16 +147,15 @@ bambooDataDecoder =
         (field "plan" string)
 
 
-encodeBambooData : Bool -> BambooData -> Value
+encodeBambooData : Bool -> BambooData -> List (String,Value)
 encodeBambooData includeCredentials v =
-    JE.object <|
-        [ ( "kind", JE.string "bamboo" )
-        , ( "serverUrl", JE.string v.serverUrl )
-        , ( "plan", JE.string v.plan )
-        ] ++
-            if includeCredentials then
-                [ ( "username", JE.string v.username )
-                , ( "password", JE.string v.password )
-                ]
-            else
-                []
+    [ ( "kind", JE.string "bamboo" )
+    , ( "serverUrl", JE.string v.serverUrl )
+    , ( "plan", JE.string v.plan )
+    ] ++
+        if includeCredentials then
+            [ ( "username", JE.string v.username )
+            , ( "password", JE.string v.password )
+            ]
+        else
+            []

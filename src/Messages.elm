@@ -41,7 +41,11 @@ type BVMsg
     | BVShareAllClicked
     | BVShowFilterClicked
     | BVFilterFocusResult
-
+    | BVTagsClicked Build
+    | BVDeleteTagClicked String
+    | BVTagsChanged String
+    | BVTagsKeyUp Int
+    | BVRaiseTag String
 
 type Msg
     = BuildsViewMsg BVMsg
@@ -58,3 +62,4 @@ type Msg
     | OpenUrl String
     | CopyToClipboard String
     | OnCopiedToClipboard String
+    | LayoutTabClicked Int

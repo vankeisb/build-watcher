@@ -31,3 +31,10 @@ validateRequired s =
         Just "This field is required"
     else
         Nothing
+
+
+split : Int -> List a -> List (List a)
+split i list =
+  case List.take i list of
+    [] -> []
+    listHead -> listHead :: split i (List.drop i list)

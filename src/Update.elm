@@ -45,7 +45,6 @@ addToast s model =
         )
 
 
-
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
@@ -81,10 +80,14 @@ update msg model =
                                 persistedData.builds
                                     |> List.indexedMap (\i pb ->
                                         case pb of
-                                            PersistedBambooBuild d ->
-                                                BambooDef i d
-                                            PersistedTravisBuild d ->
-                                                TravisDef i d
+                                            PersistedBambooBuild tags d ->
+                                                BambooDef
+                                                    { id = i, tags = tags }
+                                                    d
+                                            PersistedTravisBuild tags d ->
+                                                TravisDef
+                                                    { id = i, tags = tags }
+                                                    d
                                     )
                                     |> List.map defaultBuild
                                     |> List.sortBy (\b ->
@@ -99,6 +102,7 @@ update msg model =
                                     , counter = List.length builds
                                 }
                                 |> applyFilter
+                                |> computeTagsDataIfNeeded
                             , fetchNow
                             )
                     Err e ->
@@ -173,6 +177,7 @@ update msg model =
                     { model
                         | builds = newBuilds
                     }
+                        |> computeTagsDataIfNeeded
                 , newBuilds
                     |> List.map (desktopNotifIfBuildStateChanged model)
                     |> Cmd.batch
@@ -193,6 +198,20 @@ update msg model =
 
         OnCopiedToClipboard nodeId ->
             addToast "Copied to clipboard" model
+
+        LayoutTabClicked i ->
+            case model.view of
+                BuildListView ->
+                    (
+                        { model
+                            | layoutTab = i
+                        }
+                            |> computeTagsDataIfNeeded
+                    , Cmd.none
+                    )
+
+                AddBuildView ->
+                    model ! []
 
         -- Boilerplate: Mdl action handler.
         Mdl msg_ ->
@@ -264,22 +283,17 @@ updateAddBuildView abvm model =
                         | tab = t
                     }
             in
-                (
-                    { model
-                        | addBuildData = newAbd
-                    }
-                , Cmd.none
-
-                )
+                { model
+                    | addBuildData = newAbd
+                }
+                |> noCmd
 
         ABCancelClicked ->
-            (
-                { model
-                    | view = BuildListView
-                    , addBuildData = initialAddBuildData
-                }
-            , Cmd.none
-            )
+            { model
+                | view = BuildListView
+                , addBuildData = initialAddBuildData
+            }
+            |> noCmd
 
         ABOkClicked ->
             let
@@ -301,11 +315,19 @@ updateAddBuildView abvm model =
                 (newDefs, importError) =
                     case abd.tab of
                         0 ->
-                            ( [ BambooDef newCounter (sanitize abd.bamboo) ]
+                            (
+                                [ BambooDef
+                                    (defaultCommonBuildData newCounter)
+                                    (sanitize abd.bamboo)
+                                ]
                             , Nothing
                             )
                         1 ->
-                            ( [ TravisDef newCounter (sanitize abd.travis) ]
+                            (
+                                [ TravisDef
+                                    (defaultCommonBuildData newCounter)
+                                    (sanitize abd.travis)
+                                ]
                             , Nothing
                             )
                         2 ->
@@ -318,10 +340,10 @@ updateAddBuildView abvm model =
                                         |> Result.map (
                                             List.indexedMap (\i pb ->
                                                 case pb of
-                                                    PersistedBambooBuild d ->
-                                                        BambooDef (i + newCounter) d
-                                                    PersistedTravisBuild d ->
-                                                        TravisDef (i + newCounter) d
+                                                    PersistedBambooBuild tags d ->
+                                                        BambooDef { id = i + newCounter, tags = tags } d
+                                                    PersistedTravisBuild tags d ->
+                                                        TravisDef { id = i + newCounter, tags = tags } d
                                             )
                                         )
                                         |> Result.withDefault []
@@ -378,92 +400,84 @@ updateAddBuildView abvm model =
                     )
 
         ABBambooServerUrlChanged s ->
-            ( mapBambooBuildData
-                model
-                (\(b, be) ->
-                    ( { b | serverUrl = s }
-                    , { be | serverUrl = validateRequired s }
+            noCmd <|
+                mapBambooBuildData
+                    model
+                    (\(b, be) ->
+                        ( { b | serverUrl = s }
+                        , { be | serverUrl = validateRequired s }
+                        )
                     )
-                )
-            , Cmd.none
-            )
 
         ABBambooUsernameChanged s ->
-            ( mapBambooBuildData
-                model
-                (\(b, be) ->
-                    ( { b | username = s }
-                    , be
+            noCmd <|
+                mapBambooBuildData
+                    model
+                    (\(b, be) ->
+                        ( { b | username = s }
+                        , be
+                        )
                     )
-                )
-            , Cmd.none
-            )
 
         ABBambooPasswordChanged s ->
-            ( mapBambooBuildData
-                model
-                (\(b, be) ->
-                    ( { b | password = s }
-                    , be
+            noCmd <|
+                mapBambooBuildData
+                    model
+                    (\(b, be) ->
+                        ( { b | password = s }
+                        , be
+                        )
                     )
-                )
-            , Cmd.none
-            )
 
         ABBambooPlanChanged s ->
-            ( mapBambooBuildData
-                model
-                (\(b, be) ->
-                    ( { b | plan = s }
-                    , { be | plan = validateRequired s }
+            noCmd <|
+                mapBambooBuildData
+                    model
+                    (\(b, be) ->
+                        ( { b | plan = s }
+                        , { be | plan = validateRequired s }
+                        )
                     )
-                )
-            , Cmd.none
-            )
 
         ABTravisServerUrlChanged s ->
-            ( mapTravisBuildData
-                model
-                (\(t, te) ->
-                    ( { t | serverUrl = s }
-                    , { te | serverUrl = validateRequired s }
+            noCmd <|
+                mapTravisBuildData
+                    model
+                    (\(t, te) ->
+                        ( { t | serverUrl = s }
+                        , { te | serverUrl = validateRequired s }
+                        )
                     )
-                )
-            , Cmd.none
-            )
 
         ABTravisTokenChanged s ->
-            ( mapTravisBuildData
-                model
-                (\(t, te) ->
-                    ( { t | token = s }
-                    , te
+            noCmd <|
+                mapTravisBuildData
+                    model
+                    (\(t, te) ->
+                        ( { t | token = s }
+                        , te
+                        )
                     )
-                )
-            , Cmd.none
-            )
 
         ABTravisRepoChanged s ->
-            ( mapTravisBuildData
-                model
-                (\(t, te) ->
-                    ( { t | repository = s }
-                    , { te | repository = validateRequired s }
+            noCmd <|
+                mapTravisBuildData
+                    model
+                    (\(t, te) ->
+                        ( { t | repository = s }
+                        , { te | repository = validateRequired s }
+                        )
                     )
-                )
-            , Cmd.none
-            )
 
         ABTravisBranchChanged s ->
-            ( mapTravisBuildData
-                model
-                (\(t, te) ->
-                    ( { t | branch = s }
-                    , { te | branch = validateRequired s }
+            noCmd <|
+                mapTravisBuildData
+                    model
+                    (\(t, te) ->
+                        ( { t | branch = s }
+                        , { te | branch = validateRequired s }
+                        )
                     )
-                )
-            , Cmd.none
-            )
 
         ABImportTextChanged s ->
             let
@@ -474,12 +488,10 @@ updateAddBuildView abvm model =
                         | importText = s
                     }
             in
-                (
+                noCmd <|
                     { model
                         | addBuildData = newAbd
                     }
-                , Cmd.none
-                )
 
 
 updateBuildsView : BVMsg -> Model -> (Model, Cmd Msg)
@@ -489,22 +501,18 @@ updateBuildsView bvm model =
             handleTick model now
 
         BVAddBuildClicked ->
-            (
+            noCmd <|
                 { model
                     | addBuildData = initialAddBuildData
                     , view = AddBuildView
                 }
-            , Cmd.none
-            )
 
         BVEditClicked build ->
-            (
+            noCmd <|
                 { model
                     | addBuildData = editBuildData build
                     , view = AddBuildView
                 }
-            , Cmd.none
-            )
 
         BVDeleteClicked build ->
             let
@@ -535,10 +543,13 @@ updateBuildsView bvm model =
                 newCounter =
                     model.counter + 1
 
+                newCd cd =
+                    { cd | id = newCounter }
+
                 newDef =
                     case build.def of
-                        BambooDef _ d -> BambooDef newCounter (Bamboo.copy d)
-                        TravisDef _ d -> TravisDef newCounter (Travis.copy d)
+                        BambooDef cd d -> BambooDef (newCd cd) (Bamboo.copy d)
+                        TravisDef cd d -> TravisDef (newCd cd) (Travis.copy d)
 
                 newBuilds =
                     model.builds
@@ -554,13 +565,25 @@ updateBuildsView bvm model =
 
 
         BVAboutClicked ->
-            ({ model | dialogKind = AboutDialog }, Cmd.none)
+            noCmd <|
+                { model | dialogKind = AboutDialog }
 
         BVPrefsClicked ->
-            ({ model | dialogKind = PreferencesDialog }, Cmd.none)
+            noCmd <|
+                { model | dialogKind = PreferencesDialog }
 
         BVShareClicked build ->
-            ({ model | dialogKind = ShareBuildDialog [ build ] }, Cmd.none)
+            noCmd <|
+                { model | dialogKind = ShareBuildDialog [ build ] }
+
+        BVTagsClicked build ->
+            noCmd <|
+                { model
+                    | dialogKind =
+                        TagsDialog
+                         (getDefId build.def)
+                         ""
+                }
 
         BVPrefsToggleNotif ->
             updatePrefsAndSave
@@ -617,12 +640,10 @@ updateBuildsView bvm model =
                 ""
 
         BVShareAllClicked ->
-            (
+            noCmd <|
                 { model
                     | dialogKind = ShareBuildDialog model.builds
                 }
-            , Cmd.none
-            )
 
         BVShowFilterClicked ->
             ( { model | filterVisible = True }
@@ -633,6 +654,102 @@ updateBuildsView bvm model =
         BVFilterFocusResult ->
             -- do nothing !
             model ! []
+
+        BVDeleteTagClicked tag ->
+            withTagsDialogStuff model (\build tagsText ->
+                updateTags
+                    model
+                    build
+                    ( getCommonBuildData build.def
+                        |> .tags
+                        |> List.filter (\t -> t /= tag)
+                    )
+            )
+
+        BVTagsChanged s ->
+            withTagsDialogStuff model (\build tagsText ->
+                { model
+                    | dialogKind = TagsDialog (getDefId build.def) s
+                }
+                |> noCmd
+            )
+
+        BVTagsKeyUp keyCode ->
+            if keyCode == 13 then
+                -- ENTER : create tag(s)
+                withTagsDialogStuff model (\build tagsText ->
+                    updateTags
+                        { model
+                            | dialogKind =
+                                TagsDialog
+                                    (getDefId build.def)
+                                    ""
+                        }
+                        build
+                        (
+                            ( getCommonBuildData build.def
+                                |> .tags
+                            ) ++
+                            ( tagsText
+                                |> String.trim
+                                |> String.split " "
+                            )
+                        )
+                )
+            else
+                model ! []
+
+        BVRaiseTag tag ->
+            (
+                { model
+                    | tagsData =
+                        model.tagsData
+                            |> List.map (\td ->
+                                { td | raised = td.tag == tag }
+                            )
+                }
+            , Cmd.none
+            )
+
+
+updateTags : Model -> Build -> Tags -> (Model, Cmd Msg)
+updateTags model build newTags =
+    let
+        newBuilds =
+            model.builds
+                |> List.map (\b ->
+                    if getDefId b.def == getDefId build.def then
+                        { b
+                            | def =
+                                case b.def of
+                                    BambooDef cd d ->
+                                        BambooDef { cd | tags = newTags } d
+                                    TravisDef cd d ->
+                                        TravisDef { cd | tags = newTags } d
+                        }
+                    else
+                        b
+                )
+    in
+        updateBuildsAndSave
+            model
+            newBuilds
+            ""
+
+
+
+withTagsDialogStuff : Model -> (Build -> String -> (Model, Cmd Msg)) -> (Model, Cmd Msg)
+withTagsDialogStuff model f =
+    case model.dialogKind of
+        TagsDialog buildId tagsText ->
+            case getBuildById model buildId of
+                Just build ->
+                    f build tagsText
+                _ ->
+                    model ! []
+        _ ->
+            model ! []
+
 
 applyFilter : Model -> Model
 applyFilter model =
@@ -667,13 +784,17 @@ updateBuildsAndSave model newBuilds toastText =
         newPersistedData =
             createPersistedData model.preferences newBuilds
         (m, c) =
-            addToast toastText model
+            if String.isEmpty toastText then
+                (model, Cmd.none)
+            else
+                addToast toastText model
     in
         (
             { m
                 | builds = newBuilds
                 , view = BuildListView
             }
+                |> computeTagsDataIfNeeded
         , Cmd.batch
             [ save newPersistedData
             , c

@@ -9,6 +9,8 @@ import Material
 import Json.Decode exposing (..)
 import Json.Encode as JE
 import Material.Snackbar as Snackbar
+import Dict
+
 
 type alias Flags =
     { appName : String
@@ -16,9 +18,34 @@ type alias Flags =
     , dataFileName : String
     }
 
+type alias Tags = List String
+
+
+type alias BuildId = Int
+
+type alias CommonBuildData =
+    { id : BuildId
+    , tags : Tags
+    }
+
+
+defaultCommonBuildData : Int -> CommonBuildData
+defaultCommonBuildData id =
+    { id = id
+    , tags = []
+    }
+
+
 type BuildDef
-    = BambooDef Int BambooData
-    | TravisDef Int TravisData
+    = BambooDef CommonBuildData BambooData
+    | TravisDef CommonBuildData TravisData
+
+
+getCommonBuildData : BuildDef -> CommonBuildData
+getCommonBuildData buildDef =
+    case buildDef of
+        BambooDef cd _ -> cd
+        TravisDef cd _ -> cd
 
 
 type alias Build =
@@ -125,6 +152,7 @@ type DialogKind
     | PreferencesDialog
     | FetchErrorDialog Build
     | ShareBuildDialog (List Build)
+    | TagsDialog BuildId String
 
 
 type alias Model =
@@ -143,6 +171,8 @@ type alias Model =
     , counter : Int
     , filterText : String
     , filterVisible : Bool
+    , layoutTab : Int
+    , tagsData : List TagsListItem
     }
 
 
@@ -163,6 +193,8 @@ initialModel flags =
     , counter = 0
     , filterText = ""
     , filterVisible = False
+    , layoutTab = 0
+    , tagsData = []
     }
 
 
@@ -179,8 +211,8 @@ initialPreferences =
 
 
 type PersistedBuild
-    = PersistedBambooBuild Bamboo.BambooData
-    | PersistedTravisBuild Travis.TravisData
+    = PersistedBambooBuild Tags Bamboo.BambooData
+    | PersistedTravisBuild Tags Travis.TravisData
 
 
 type alias PersistedData =
@@ -193,10 +225,17 @@ persistedBuildDecoder : Decoder PersistedBuild
 persistedBuildDecoder =
     (field "kind" string)
         |> andThen (\k ->
-            case k of
-                "bamboo" -> map PersistedBambooBuild Bamboo.bambooDataDecoder
-                "travis" -> map PersistedTravisBuild Travis.travisDataDecoder
-                _ -> fail <| "unsupported kind " ++ k
+            ( oneOf
+                [ field "tags" (list string)
+                , succeed []
+                ]
+            )
+                |> andThen (\tags ->
+                    case k of
+                        "bamboo" -> map (PersistedBambooBuild tags) Bamboo.bambooDataDecoder
+                        "travis" -> map (PersistedTravisBuild tags) Travis.travisDataDecoder
+                        _ -> fail <| "unsupported kind " ++ k
+                )
         )
 
 
@@ -228,18 +267,30 @@ encodePreferences v =
         [ ( "enableNotifications", JE.bool v.enableNotifications )
         ]
 
+
+encodeTags : Tags -> (String, Value)
+encodeTags tags =
+    ("tags", JE.list (List.map JE.string tags))
+
+
 encodePersistedData : PersistedData -> Value
 encodePersistedData v =
     let
+
+        pbToValue pb =
+            JE.object <|
+                case pb of
+                    PersistedBambooBuild tags d ->
+                        (Bamboo.encodeBambooData True d)
+                            ++ [ encodeTags tags ]
+
+                    PersistedTravisBuild tags d ->
+                        (Travis.encodeTravisData True d)
+                            ++ [ encodeTags tags ]
+
         builds =
             v.builds
-                |> List.map (\pb ->
-                    case pb of
-                        PersistedBambooBuild d ->
-                            Bamboo.encodeBambooData True d
-                        PersistedTravisBuild d ->
-                            Travis.encodeTravisData True d
-                )
+                |> List.map pbToValue
                 |> JE.list
     in
         JE.object
@@ -260,8 +311,15 @@ getBuildName buildDef =
 getDefId : BuildDef -> Int
 getDefId buildDef =
     case buildDef of
-        BambooDef i _ -> i
-        TravisDef i _ -> i
+        BambooDef cd _ -> cd.id
+        TravisDef cd _ -> cd.id
+
+
+getBuildById : Model -> Int -> Maybe Build
+getBuildById model id =
+    model.builds
+        |> List.filter (\b -> getDefId b.def == id)
+        |> List.head
 
 
 createPersistedData : Preferences -> List Build -> PersistedData
@@ -270,10 +328,92 @@ createPersistedData prefs builds =
         builds
             |> List.map (\b ->
                 case b.def of
-                    BambooDef i d ->
-                        PersistedBambooBuild d
-                    TravisDef i d ->
-                        PersistedTravisBuild d
+                    BambooDef cd d ->
+                        PersistedBambooBuild cd.tags d
+                    TravisDef cd d ->
+                        PersistedTravisBuild cd.tags d
             )
     , preferences = prefs
     }
+
+
+type alias TagsListItem =
+    { tag : String
+    , nbGreen : Int
+    , nbRed : Int
+    , raised : Bool
+    }
+
+
+computeTagsDataIfNeeded : Model -> Model
+computeTagsDataIfNeeded model =
+    if model.layoutTab == 1 then
+        { model
+            | tagsData =
+                computeTagListItems model.builds
+        }
+    else
+        model
+
+
+computeTagListItems : List Build -> List TagsListItem
+computeTagListItems builds =
+    let
+        -- create a (tag,build) list from a list of builds
+        zipTagAndBuild builds tagsAndBuilds =
+            case builds of
+                b :: bs ->
+                    tagsAndBuilds
+                        |> List.append
+                            ( getCommonBuildData b.def
+                                |> .tags
+                                |> List.map (\tag ->
+                                    (tag, b)
+                                )
+                            )
+                        |> zipTagAndBuild bs
+                _ ->
+                    tagsAndBuilds
+
+        -- create a dict of (tag -> taglistitem) build
+        createDict tagsAndBuilds d =
+            case tagsAndBuilds of
+                tab :: tabs ->
+                    let
+                        tag =
+                            Tuple.first tab
+                        build =
+                            Tuple.second tab
+                        tli =
+                            Dict.get tag d
+                                |> Maybe.withDefault
+                                    { tag = tag
+                                    , nbGreen = 0
+                                    , nbRed = 0
+                                    , raised = False
+                                    }
+                        isGreen =
+                            build.result
+                                |> Maybe.map (\r -> r.status == Green)
+                                |> Maybe.withDefault False
+
+                        newTli =
+                            { tli
+                                | nbGreen = tli.nbGreen +
+                                    if isGreen then 1 else 0
+                                , nbRed = tli.nbRed +
+                                    ( if isGreen then 0 else 1 )
+                            }
+
+                        newDict =
+                            Dict.insert tag newTli d
+                    in
+                        createDict tabs newDict
+                _ ->
+                    d
+    in
+        createDict
+            ( zipTagAndBuild builds [] )
+            Dict.empty
+                |> Dict.toList
+                |> List.map Tuple.second
