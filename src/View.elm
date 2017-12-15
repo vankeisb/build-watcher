@@ -580,7 +580,7 @@ viewSearchBar model =
         [ Elevation.e2
         , css "padding" "8px"
         , css "display" <|
-            if model.filterVisible then
+            if model.layoutTab /= 1 && model.filterVisible then
                 "block"
             else
                 "none"
