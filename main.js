@@ -18,18 +18,18 @@ let mainWindow
 
 let willQuitApp = false;
 
-const isDevEnv = true;
+const isDevEnv = false;
 
 function createWindow () {
   // Create the browser window.
   mainWindow = new BrowserWindow({
       width: 400,
       minWidth: 400,
-      maxWidth : isDevEnv ? 3000 : 600,
       height: 800,
       minHeight: 400,
       icon: path.join(__dirname, 'assets/icons/png/64.png'),
-      titleBarStyle: 'hiddenInset'
+      titleBarStyle: 'hiddenInset',
+      skipTextBar: true
   });
 
   // and load the index.html of the app.
@@ -73,7 +73,8 @@ app.on('activate', function () {
 
 let tray = null;
 app.on('ready', () => {
-    app.dock.hide();
+    // hide dock icon on osx
+    app.dock && app.dock.hide();
     const iconName = process.platform === 'win32' ? 'windows-icon.png' : 'iconTemplate.png'
     const iconPath = path.join(__dirname, 'assets', 'tray-icon', iconName)
     tray = new Tray(iconPath)
