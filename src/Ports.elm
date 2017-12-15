@@ -45,6 +45,8 @@ port desktopNotification : DesktopNotif -> Cmd m
 
 port quit : () -> Cmd m
 
+port closeWindow : () -> Cmd m
+
 type alias CopyInput =
     { nodeId : String
     , data : String

@@ -51,16 +51,24 @@ view model =
         ]
         { header =
             [ Layout.row
-                [ css "padding-left" "16px"
+                [ css "padding-left" "4px"
                 , css "padding-right" "4px"
                 , css "height" "36px"
                 ]
-                [ Layout.title
+                [ Button.render Mdl [ 0, 0, 0 ] model.mdl
+                    [ Button.icon
+                    , Button.ripple
+                    , Options.onClick CloseClicked
+                    ]
+                    [ Icon.i "close"
+                    ]
+                , Layout.title
                     [ css "align-items" "center"
                     , css "display" "flex"
                     , css "flex-grow" "1"
                     , css "justify-content" "center"
                     , css "font-size" "14px"
+                    , css "-webkit-app-region" "drag"
                     ]
                     [ Icon.view "remove_red_eye"
                         [ css "padding-right" "12px"
@@ -87,11 +95,13 @@ view model =
                                 ]
                             ]
                             [
-                                if not model.filterVisible then
+                                if model.layoutTab /= 1
+                                    && not model.filterVisible then
                                     Button.render Mdl [0, 0] model.mdl
                                         [ Button.icon
                                         , Button.ripple
-                                        , Options.onClick <| BuildsViewMsg BVShowFilterClicked
+                                        , Options.onClick <|
+                                            BuildsViewMsg BVShowFilterClicked
                                         ]
                                         [ Icon.i "search"
                                         ]

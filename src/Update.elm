@@ -213,6 +213,11 @@ update msg model =
                 AddBuildView ->
                     model ! []
 
+        CloseClicked ->
+            ( model
+            , Ports.closeWindow ()
+            )
+
         -- Boilerplate: Mdl action handler.
         Mdl msg_ ->
             Material.update Mdl msg_ model
@@ -776,7 +781,13 @@ applyFilter model =
                                 not <|
                                     String.contains
                                         (String.toLower model.filterText)
-                                        (String.toLower (getBuildName b.def))
+                                        (String.toLower <|
+                                            (getBuildName b.def) ++
+                                                (getCommonBuildData b.def
+                                                    |> .tags
+                                                    |> String.join " "
+                                                )
+                                        )
                     }
                 )
     }

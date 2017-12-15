@@ -64,3 +64,4 @@ type Msg
     | CopyToClipboard String
     | OnCopiedToClipboard String
     | LayoutTabClicked Int
+    | CloseClicked

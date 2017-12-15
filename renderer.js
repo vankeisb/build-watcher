@@ -68,6 +68,12 @@ a.ports.quit.subscribe(function() {
     })
 })
 
+a.ports.closeWindow.subscribe(function() {
+    sendToMain({
+        kind: "close-window"
+    })
+})
+
 a.ports.copyToClipboard.subscribe(function(msg) {
     const n = document.getElementById(msg.nodeId);
     n.select();

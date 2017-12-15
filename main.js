@@ -18,7 +18,7 @@ let mainWindow
 
 let willQuitApp = false;
 
-const isDevEnv = false;
+const isDevEnv = true;
 
 function createWindow () {
   // Create the browser window.
@@ -27,9 +27,7 @@ function createWindow () {
       minWidth: 400,
       height: 800,
       minHeight: 400,
-      icon: path.join(__dirname, 'assets/icons/png/64.png'),
-      titleBarStyle: 'hiddenInset',
-      skipTextBar: true
+      frame: false
   });
 
   // and load the index.html of the app.
@@ -161,6 +159,8 @@ app.on('ready', () => {
             electron.shell.openExternal(arg.data);
         } else if (k === 'notif-clicked') {
             mainWindow.show();
+        } else if (k === 'close-window') {
+            mainWindow.hide();
         } else if (k === 'quit') {
             app.quit();
         }
