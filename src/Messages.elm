@@ -46,6 +46,7 @@ type BVMsg
     | BVTagsChanged String
     | BVTagsKeyUp Int
     | BVRaiseTag String
+    | BVBuildHover Bool Build
 
 type Msg
     = BuildsViewMsg BVMsg

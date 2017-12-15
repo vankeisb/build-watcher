@@ -56,6 +56,7 @@ type alias Build =
     , fetchError : Maybe Http.Error
     , previousStatus : Status
     , filtered : Bool
+    , hover : Bool
     }
 
 
@@ -68,6 +69,7 @@ defaultBuild buildDef =
     , fetchError = Nothing
     , previousStatus = Unknown
     , filtered = False
+    , hover = False
     }
 
 

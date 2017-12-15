@@ -700,16 +700,27 @@ updateBuildsView bvm model =
                 model ! []
 
         BVRaiseTag tag ->
-            (
-                { model
-                    | tagsData =
-                        model.tagsData
-                            |> List.map (\td ->
-                                { td | raised = td.tag == tag }
-                            )
-                }
-            , Cmd.none
-            )
+            { model
+                | tagsData =
+                    model.tagsData
+                        |> List.map (\td ->
+                            { td | raised = td.tag == tag }
+                        )
+            }
+                |> noCmd
+
+        BVBuildHover hover build ->
+            { model
+                | builds =
+                    model.builds
+                        |> List.map (\b ->
+                            { b
+                                | hover =
+                                    getDefId b.def == getDefId build.def
+                            }
+                        )
+            }
+                |> noCmd
 
 
 updateTags : Model -> Build -> Tags -> (Model, Cmd Msg)

@@ -205,148 +205,6 @@ view model =
         |> Material.Scheme.top --WithScheme Color.BlueGrey Color.Blue
 
 
-viewDefAndResult : Model -> Int -> Build -> Html Msg
-viewDefAndResult model index b =
-    let
-        (avatarIcon, hue) =
-            case b.result of
-                Just r ->
-                    case r.status of
-                        Unknown ->
-                            ("play_circle_outline", Color.Grey)
-                        Building ->
-                            -- use prev result to change color
-                            -- when the build is in progress
-                            ( "autorenew"
-                            , case b.previousStatus of
-                                Red -> Color.Red
-                                Green -> Color.Green
-                                _ -> Color.Grey
-                            )
-                        Green ->
-                            ("mood", Color.Green)
-                        Red ->
-                            ("mood_bad", Color.Red)
-                Nothing ->
-                    case b.fetchError of
-                        Just e ->
-                            ("error_outline", Color.DeepPurple)
-                        Nothing ->
-                            ("play_circle_outline", Color.Grey)
-
-        padding =
-            css "padding-right" "18px"
-
-        liClick =
-            Options.onClick (BuildsViewMsg (BVBuildClicked b))
-
-        (browseEnabledAttr, browseSelectAttr) =
-            case b.result of
-                Just result ->
-                    ( Options.nop
-                    , Menu.onSelect <| BuildsViewMsg (BVBuildClicked b)
-                    )
-                Nothing ->
-                    ( Menu.disabled
-                    , Options.nop
-                    )
-        tags =
-            getCommonBuildData b.def
-                |> .tags
-
-    in
-        Lists.li
-            [ Lists.withSubtitle |> Options.when (not (List.isEmpty tags))
-            , css "overflow" "inherit"
-            ]
-            [ Lists.content
-                [ liClick
-                , b.fetchError
-                    |> Maybe.map (\_ -> Dialog.openOn "click")
-                    |> Maybe.withDefault Options.nop
-                , cs "bm-clickable"
-                ]
-                [ Lists.avatarIcon
-                    avatarIcon
-                    [ Color.background (Color.color hue Color.S500) ]
-                , Options.div
-                    wordWrap
-                    [ text <| getBuildName b.def ]
-                ,
-                    if List.isEmpty tags then
-                        text ""
-                    else
-                        Lists.subtitle
-                            wordWrap
-                            ( getCommonBuildData b.def
-                                |> .tags
-                                |> List.map (\tag ->
-                                    Chip.span
-                                        [ css "margin" "0px 4px 0px 0px"
-                                        , css "height" "20px"
-                                        , css "line-height" "20px"
-                                        , css "padding" "0 6px"
-                                        ]
-                                        [ Chip.content
-                                            [ css "font-size" "10px" ]
-                                            [ text tag ]
-                                        ]
-                                )
-                            )
-                ]
-            , Menu.render Mdl [ 1, index ] model.mdl
-                [ Menu.bottomRight
-                , Menu.ripple
-                ]
-                [ Menu.item
-                    [ browseSelectAttr
-                    , browseEnabledAttr
-                    , padding
-                    ]
-                    [ i "launch"
-                    , text "Browse"
-                    ]
-                , Menu.item
-                    [ Menu.onSelect <| BuildsViewMsg (BVEditClicked b)
-                    , padding
-                    ]
-                    [ i "edit"
-                    , text "Edit"
-                    ]
-                , Menu.item
-                    [ Menu.onSelect <| BuildsViewMsg (BVTagsClicked b)
-                    , padding
-                    , Dialog.openOn "click"
-                    ]
-                    [ i "label_outline"
-                    , text "Tag"
-                    ]
-                , Menu.item
-                    [ Menu.onSelect <| BuildsViewMsg (BVCopyClicked b)
-                    , padding
-                    ]
-                    [ i "content_copy"
-                    , text "Duplicate"
-                    ]
-                , Menu.item
-                    [ Dialog.openOn "click"
-                    , Menu.onSelect <| BuildsViewMsg (BVShareClicked b)
-                    , padding
-                    , Menu.divider
-                    ]
-                    [ i "share"
-                    , text "Share"
-                    ]
-                , Menu.item
-                    [ Menu.onSelect <| BuildsViewMsg (BVDeleteClicked b)
-                    ]
-                    [ i "delete"
-                    , text "Delete"
-                    ]
-                ]
-            ]
-
-
 viewBuildList : Model -> List (Html Msg)
 viewBuildList model =
     [
@@ -422,29 +280,213 @@ viewBuildList model =
                                 , ( "overflow-y", "auto" )
                                 ]
                             ]
-                            (
-                                case model.layoutTab of
-                                    0 ->
-                                        [ Lists.ul []
-                                            ( model.builds
-                                                    |> List.filter (\b -> not b.filtered)
-                                                    |> List.indexedMap
-                                                        (viewDefAndResult model)
-                                            )
-                                        ]
-                                    1 ->
-                                        [ viewTags model
-                                        ]
-
-                                    _ ->
-                                        Debug.crash "unknown tab"
-                            )
+                            [ case model.layoutTab of
+                                0 ->
+                                    viewBuilds model
+                                1 ->
+                                    viewTags model
+                                _ ->
+                                    Debug.crash "unknown tab"
+                            ]
                         ]
                     ]
                 ]
     ]
 
 nbCols = 2
+
+
+viewBuilds : Model -> Html Msg
+viewBuilds model =
+    div
+        [ style [ displayFlex, flexColumn ] ]
+        ( model.builds
+                |> List.filter (\b -> not b.filtered)
+                |> List.indexedMap
+                    (viewDefAndResult model)
+        )
+
+
+viewDefAndResult : Model -> Int -> Build -> Html Msg
+viewDefAndResult model index b =
+    let
+        (avatarIcon, hue) =
+            case b.result of
+                Just r ->
+                    case r.status of
+                        Unknown ->
+                            ("play_circle_outline", Color.Grey)
+                        Building ->
+                            -- use prev result to change color
+                            -- when the build is in progress
+                            ( "autorenew"
+                            , case b.previousStatus of
+                                Red -> Color.Red
+                                Green -> Color.Green
+                                _ -> Color.Grey
+                            )
+                        Green ->
+                            ("mood", Color.Green)
+                        Red ->
+                            ("mood_bad", Color.Red)
+                Nothing ->
+                    case b.fetchError of
+                        Just e ->
+                            ("error_outline", Color.DeepPurple)
+                        Nothing ->
+                            ("play_circle_outline", Color.Grey)
+
+        padding =
+            css "padding-right" "18px"
+
+        (browseEnabledAttr, browseSelectAttr) =
+            case b.result of
+                Just result ->
+                    ( Options.nop
+                    , Menu.onSelect <| BuildsViewMsg (BVBuildClicked b)
+                    )
+                Nothing ->
+                    ( Menu.disabled
+                    , Options.nop
+                    )
+        tags =
+            getCommonBuildData b.def
+                |> .tags
+
+        onBuildClicked =
+            Html.Events.onClick (BuildsViewMsg (BVBuildClicked b))
+    in
+        div
+            [ style <|
+                [ displayFlex
+                , alignItemsCenter
+                , ("padding-top", "8px")
+                , ("padding-bottom", "8px")
+                ] ++
+                (
+                    if b.hover then
+                        [ ("background-color", "#EEEEEE")
+                        , ("cursor", "pointer")
+                        ]
+                    else
+                        []
+                )
+            , Html.Events.onMouseEnter <| BuildsViewMsg (BVBuildHover True b)
+            , Html.Events.onMouseLeave <| BuildsViewMsg (BVBuildHover False b)
+            ]
+            [ div
+                [ style [ displayFlex, alignItemsCenter ]
+                , onBuildClicked
+                ]
+                [ Icon.view avatarIcon
+                    [ Color.background (Color.color hue Color.S500)
+                    , css "border-radius" "50%"
+                    , css "color" "white"
+                    , css "margin-left" "8px"
+                    , css "margin-right" "8px"
+                    , Icon.size48
+                    ]
+                ]
+            , div
+                [ style <|
+                    [ displayFlex
+                    , flexColumn
+                    , flexGrow
+                    , ("overflow", "hidden")
+                    ]
+                , onBuildClicked
+                ]
+                [ Options.div
+                    (
+                        [ Typo.subhead
+                        , css "line-height" "inherit"
+                        ] ++ wordWrap
+                    )
+                    [ text <| getBuildName b.def ]
+                ,
+                    if List.isEmpty tags then
+                        text ""
+                    else
+                        div [ style [ flexGrow, displayFlex, flexWrap ] ]
+                            ( getCommonBuildData b.def
+                                |> .tags
+                                |> List.map (\tag ->
+                                    Chip.span
+                                        [ css "margin" "0px 4px 4px 0px"
+                                        , css "height" "20px"
+                                        , css "line-height" "20px"
+                                        , css "padding" "0 6px"
+                                        ]
+                                        [ Chip.content
+                                            [ css "font-size" "10px" ]
+                                            [ text tag ]
+                                        ]
+                                )
+                            )
+                ]
+            ,
+                if b.hover then
+                    div []
+                        [ Menu.render Mdl [ 1, index ] model.mdl
+                            [ Menu.bottomRight
+                            , Menu.ripple
+                            ]
+                            [ Menu.item
+                                [ browseSelectAttr
+                                , browseEnabledAttr
+                                , padding
+                                ]
+                                [ i "launch"
+                                , text "Browse"
+                                ]
+                            , Menu.item
+                                [ Menu.onSelect <| BuildsViewMsg (BVEditClicked b)
+                                , padding
+                                ]
+                                [ i "edit"
+                                , text "Edit"
+                                ]
+                            , Menu.item
+                                [ Menu.onSelect <| BuildsViewMsg (BVTagsClicked b)
+                                , padding
+                                , Dialog.openOn "click"
+                                ]
+                                [ i "label_outline"
+                                , text "Tag"
+                                ]
+                            , Menu.item
+                                [ Menu.onSelect <| BuildsViewMsg (BVCopyClicked b)
+                                , padding
+                                ]
+                                [ i "content_copy"
+                                , text "Duplicate"
+                                ]
+                            , Menu.item
+                                [ Dialog.openOn "click"
+                                , Menu.onSelect <| BuildsViewMsg (BVShareClicked b)
+                                , padding
+                                , Menu.divider
+                                ]
+                                [ i "share"
+                                , text "Share"
+                                ]
+                            , Menu.item
+                                [ Menu.onSelect <| BuildsViewMsg (BVDeleteClicked b)
+                                ]
+                                [ i "delete"
+                                , text "Delete"
+                                ]
+                            ]
+                        ]
+                else
+                    div
+                        [ style
+                            [ ("min-width", "32px")
+                            , ("max-width", "32px")
+                            ]
+                        ]
+                        []
+            ]
 
 viewTags : Model -> Html Msg
 viewTags model =

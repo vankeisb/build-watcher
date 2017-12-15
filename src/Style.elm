@@ -2,7 +2,7 @@ module Style exposing (..)
 
 import Html.Attributes exposing (style)
 import Html exposing (div)
-import Material.Options exposing (css)
+import Material.Options
 
 
 displayFlex = ("display", "flex")
@@ -16,6 +16,7 @@ bottom0 = ("bottom", "0")
 alignItemsCenter = ("align-items", "center")
 flexGrow = ("flex-grow", "1")
 flexColumn = ("flex-direction", "column")
+flexWrap = ("flex-wrap", "wrap")
 
 
 growLeft left right =
@@ -45,8 +46,12 @@ growLeft left right =
             ]
         ]
 
-wordWrap =
-    [ css "text-overflow" "ellipsis"
-    , css "white-space" "nowrap"
-    , css "overflow" "hidden"
+wordWrapStyles =
+    [ ("text-overflow", "ellipsis")
+    , ("white-space", "nowrap")
+    , ("overflow", "hidden")
     ]
+
+wordWrap =
+    wordWrapStyles
+        |> List.map (\(n,v) -> Material.Options.css n v)
