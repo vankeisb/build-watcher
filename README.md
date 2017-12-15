@@ -2,10 +2,12 @@ Electron-based app for monitoring C.I. builds from various servers, in a single 
 
 # Features
 
+* multi server (Bamboo and Travis for now)
 * "live" build status list
+* tags view (build groups)
 * minimizes to sys tray
 * desktop notifications
-* multi server (Bamboo and Travis for now)
+* share config with others
 
 # Download
 
