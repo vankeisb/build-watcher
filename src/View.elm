@@ -376,7 +376,6 @@ viewDefAndResult model index b =
             ]
             [ div
                 [ style [ displayFlex, alignItemsCenter ]
-                , onBuildClicked
                 ]
                 [ Icon.view avatarIcon
                     [ Color.background (Color.color hue Color.S500)
@@ -493,6 +492,7 @@ viewTags model =
     div
         [ style
             [ ("display", "grid")
+            , ("grid-template-columns", "auto auto")
             ]
         ]
         ( model.tagsData
@@ -530,13 +530,14 @@ viewTag tagsListItem =
                 else
                     Color.color Color.Red Color.S500
             , css "width" "100%"
+            , css "overflow" "hidden"
             , if tagsListItem.raised then Elevation.e8 else Elevation.e2
             , Elevation.transition 250
             , Options.onMouseEnter (BuildsViewMsg <| BVRaiseTag tagsListItem.tag)
             , Options.onMouseLeave (BuildsViewMsg <| BVRaiseTag "")
             ]
             [ Card.title
-                []
+                wordWrap
                 [ Card.head [ white ] [ text tagsListItem.tag ] ]
             , Card.text [ white ]
                 [ div

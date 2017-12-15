@@ -419,3 +419,4 @@ computeTagListItems builds =
             Dict.empty
                 |> Dict.toList
                 |> List.map Tuple.second
+                |> List.sortBy .tag
