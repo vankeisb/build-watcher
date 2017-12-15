@@ -2,10 +2,30 @@ Electron-based app for monitoring C.I. builds from various servers, in a single 
 
 # Features
 
+* multi server (Bamboo and Travis for now)
 * "live" build status list
+* tags view (build groups)
 * minimizes to sys tray
 * desktop notifications
-* multi server (Bamboo and Travis for now)
+* share config with others
+
+# Download
+
+Binaries can be found at :
+
+http://rvkb.com/build-watcher
+
+Those are zipped apps, no installer, no auto-update.
+Download, unzip, and run the executable.
+
+## Mac
+
+Just toss the .app into applications folder, as usual.
+
+## Windows
+
+The exe needs to be along all other files in the expanded dir.
+Best create a link to it.
 
 # Download
 
