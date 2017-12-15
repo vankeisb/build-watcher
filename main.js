@@ -18,15 +18,16 @@ let mainWindow
 
 let willQuitApp = false;
 
+const isDevEnv = true;
+
 function createWindow () {
   // Create the browser window.
   mainWindow = new BrowserWindow({
       width: 400,
       minWidth: 400,
-      maxWidth : 600,
       height: 800,
       minHeight: 400,
-      icon: path.join(__dirname, 'assets/icons/png/64.png')
+      frame: false
   });
 
   // and load the index.html of the app.
@@ -59,15 +60,6 @@ app.on('ready', createWindow)
  * the signal to exit and wants to start closing windows */
 app.on('before-quit', () => willQuitApp = true);
 
-// Quit when all windows are closed.
-// app.on('window-all-closed', function () {
-//   // On OS X it is common for applications and their menu bar
-//   // to stay active until the user quits explicitly with Cmd + Q
-//   if (process.platform !== 'darwin') {
-//     app.quit()
-//   }
-// })
-
 app.on('activate', function () {
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
@@ -79,6 +71,8 @@ app.on('activate', function () {
 
 let tray = null;
 app.on('ready', () => {
+    // hide dock icon on osx
+    app.dock && app.dock.hide();
     const iconName = process.platform === 'win32' ? 'windows-icon.png' : 'iconTemplate.png'
     const iconPath = path.join(__dirname, 'assets', 'tray-icon', iconName)
     tray = new Tray(iconPath)
@@ -165,31 +159,33 @@ app.on('ready', () => {
             electron.shell.openExternal(arg.data);
         } else if (k === 'notif-clicked') {
             mainWindow.show();
+        } else if (k === 'close-window') {
+            mainWindow.hide();
         } else if (k === 'quit') {
             app.quit();
         }
     });
 
     // add menu for ctrl-c to work...
-    var template = [{
-        label: "Application",
-        submenu: [
-            { label: "About Application", selector: "orderFrontStandardAboutPanel:" },
-            { type: "separator" },
-            { label: "Quit", accelerator: "Command+Q", click: function() { app.quit(); }}
-        ]}, {
-        label: "Edit",
-        submenu: [
-            { label: "Undo", accelerator: "CmdOrCtrl+Z", selector: "undo:" },
-            { label: "Redo", accelerator: "Shift+CmdOrCtrl+Z", selector: "redo:" },
-            { type: "separator" },
-            { label: "Cut", accelerator: "CmdOrCtrl+X", selector: "cut:" },
-            { label: "Copy", accelerator: "CmdOrCtrl+C", selector: "copy:" },
-            { label: "Paste", accelerator: "CmdOrCtrl+V", selector: "paste:" },
-            { label: "Select All", accelerator: "CmdOrCtrl+A", selector: "selectAll:" }
-        ]}
-    ];
-
-    Menu.setApplicationMenu(Menu.buildFromTemplate(template));
-
+    if (!isDevEnv) {
+        var template = [{
+            label: "Application",
+            submenu: [
+                { label: "About Application", selector: "orderFrontStandardAboutPanel:" },
+                { type: "separator" },
+                { label: "Quit", accelerator: "Command+Q", click: function() { app.quit(); }}
+            ]}, {
+            label: "Edit",
+            submenu: [
+                { label: "Undo", accelerator: "CmdOrCtrl+Z", selector: "undo:" },
+                { label: "Redo", accelerator: "Shift+CmdOrCtrl+Z", selector: "redo:" },
+                { type: "separator" },
+                { label: "Cut", accelerator: "CmdOrCtrl+X", selector: "cut:" },
+                { label: "Copy", accelerator: "CmdOrCtrl+C", selector: "copy:" },
+                { label: "Paste", accelerator: "CmdOrCtrl+V", selector: "paste:" },
+                { label: "Select All", accelerator: "CmdOrCtrl+A", selector: "selectAll:" }
+            ]}
+        ];
+        Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+    }
 })

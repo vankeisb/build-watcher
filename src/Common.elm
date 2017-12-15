@@ -17,9 +17,12 @@ type alias BuildResult =
     }
 
 
-stringOrEmpty : Decoder String
-stringOrEmpty =
-    oneOf [ string, succeed "" ]
+stringOrEmpty : String -> Decoder String
+stringOrEmpty f =
+    oneOf
+        [ field f string
+        , succeed ""
+        ]
 
 
 validateRequired : String -> Maybe String
@@ -28,3 +31,10 @@ validateRequired s =
         Just "This field is required"
     else
         Nothing
+
+
+split : Int -> List a -> List (List a)
+split i list =
+  case List.take i list of
+    [] -> []
+    listHead -> listHead :: split i (List.drop i list)

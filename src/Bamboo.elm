@@ -142,16 +142,20 @@ bambooDataDecoder : Decoder BambooData
 bambooDataDecoder =
     map4 BambooData
         (field "serverUrl" string)
-        (field "username" stringOrEmpty)
-        (field "password" stringOrEmpty)
+        (stringOrEmpty "username")
+        (stringOrEmpty "password")
         (field "plan" string)
 
 
-encodeBambooData : BambooData -> Value
-encodeBambooData v =
-    JE.object
-        [ ( "serverUrl", JE.string v.serverUrl )
-        , ( "username", JE.string v.username )
-        , ( "password", JE.string v.password )
-        , ( "plan", JE.string v.plan )
-        ]
+encodeBambooData : Bool -> BambooData -> List (String,Value)
+encodeBambooData includeCredentials v =
+    [ ( "kind", JE.string "bamboo" )
+    , ( "serverUrl", JE.string v.serverUrl )
+    , ( "plan", JE.string v.plan )
+    ] ++
+        if includeCredentials then
+            [ ( "username", JE.string v.username )
+            , ( "password", JE.string v.password )
+            ]
+        else
+            []

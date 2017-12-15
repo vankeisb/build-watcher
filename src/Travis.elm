@@ -12,6 +12,7 @@ type alias TravisData =
     , token : String
     , repository : String
     , branch : String
+    , travisToken : Maybe String
     }
 
 
@@ -81,61 +82,100 @@ parseTravisState s =
         _ -> Red
 
 
+apiUrl : String -> String
+apiUrl serverUrl =
+    if serverUrl == "https://travis-ci.org" then
+        "https://api.travis-ci.org"
+    else if serverUrl == "https://travis-ci.com" then
+        "https://api.travis-ci.com"
+    else
+        serverUrl ++ "/api"
 
-fetch : TravisData -> Task Error BuildResult
+
+getToken: TravisData -> Task Error String
+getToken d =
+    request
+      { method = "POST"
+      , headers =
+          []
+      , url = (apiUrl d.serverUrl)
+          ++ "/auth/github"
+      , body = Http.jsonBody <|
+          JE.object
+            [ ( "github_token", JE.string d.token)
+            ]
+      , expect = expectJson travisTokenDecoder
+      , timeout = Nothing
+      , withCredentials = False
+      }
+        |> toTask
+
+
+travisTokenDecoder : Decoder String
+travisTokenDecoder =
+    field "access_token" string
+
+
+fetch : TravisData -> Task Error (BuildResult, TravisData)
 fetch d =
     let
-        apiUrl =
-            if d.serverUrl == "https://travis-ci.org" then
-                "https://api.travis-ci.org"
-            else if d.serverUrl == "https://travis-ci.com" then
-                "https://api.travis-ci.com"
-            else
-                d.serverUrl ++ "/api"
-        u =
-            apiUrl
-                ++ "/repo/"
-                ++ encodeUri d.repository
-                ++ "/branch/"
-                ++ encodeUri d.branch
-
-        authHeader =
-            if String.isEmpty d.token then
-                []
-            else
-                [ header "Authorization" ("token " ++ d.token) ]
-        req =
+        createRequest travisToken =
             request
                 { method = "GET"
                 , headers =
                     [ header "Content-Type" "application/json"
                     , header "Accept" "application/json"
                     , header "Travis-API-Version" "3"
-                    ] ++ authHeader
-                , url = u
+                    ] ++ (
+                        if String.isEmpty travisToken then
+                            []
+                        else
+                            [ header "Authorization" ("token " ++ travisToken) ]
+                    )
+                , url =
+                    (apiUrl d.serverUrl)
+                        ++ "/repo/"
+                        ++ encodeUri d.repository
+                        ++ "/branch/"
+                        ++ encodeUri d.branch
                 , body = emptyBody
                 , expect = expectJson (resultsDecoder d)
                 , timeout = Nothing
                 , withCredentials = False
                 }
     in
-        toTask req
+        case d.travisToken of
+            Just token ->
+                toTask (createRequest token)
+                    |> Task.map (\br -> (br, d))
+            Nothing ->
+                getToken d
+                    |> Task.andThen (\token ->
+                        createRequest token
+                            |> toTask
+                            |> Task.map (\br -> (br, { d | travisToken = Just token }))
+                    )
 
 
 travisDataDecoder : Decoder TravisData
 travisDataDecoder =
-    map4 TravisData
+    map5 TravisData
         (field "serverUrl" string)
-        (field "token" stringOrEmpty)
+        (stringOrEmpty "token")
         (field "repository" string)
         (field "branch" string)
+        (succeed Nothing)
 
 
-encodeTravisData : TravisData -> Value
-encodeTravisData v =
-    JE.object
-        [ ( "serverUrl", JE.string v.serverUrl )
-        , ( "token", JE.string v.token )
-        , ( "repository", JE.string v.repository )
-        , ( "branch", JE.string v.branch )
-        ]
+
+encodeTravisData : Bool -> TravisData -> List (String,Value)
+encodeTravisData includeCredentials v =
+    [ ( "kind", JE.string "travis" )
+    , ( "serverUrl", JE.string v.serverUrl )
+    , ( "repository", JE.string v.repository )
+    , ( "branch", JE.string v.branch )
+    ] ++
+        if includeCredentials then
+            [ ( "token", JE.string v.token ) ]
+        else
+            []

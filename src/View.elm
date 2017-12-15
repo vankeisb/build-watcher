@@ -1,36 +1,42 @@
 module View exposing (..)
 
 
+import Bamboo
 import Common exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onWithOptions)
+import Json.Decode as Json
+import Json.Encode
 import Material.Button as Button
 import Material.Color as Color
 import Material.Dialog as Dialog
+import Material.Elevation as Elevation
 import Material.Grid as Grid
 import Material.Icon as Icon
 import Material.Layout as Layout
 import Material.List as Lists
 import Material.Menu as Menu
-import Material.Options as Options exposing (css, cs)
+import Material.Options as Options exposing (cs, css)
 import Material.Scheme
 import Material.Snackbar as Snackbar
 import Material.Tabs as Tabs
 import Material.Textfield as Textfield
-import Material.Typography as Typo
 import Material.Toggles as Toggles
+import Material.Typography as Typo
 import Messages exposing (..)
 import Model exposing (..)
 import Style exposing (..)
-import Json.Decode as Json
-import Bamboo
 import Travis
+import Material.Chip as Chip
+import Material.Card as Card
 
 
+i : String -> Html m
 i name =
     Icon.view name [ css "width" "40px" ]
 
+padding: Options.Property c m
 padding =
     css "padding-right" "18px"
 
@@ -39,69 +45,137 @@ view : Model -> Html Msg
 view model =
     Layout.render Mdl model.mdl
         [ Layout.fixedHeader
+        , Layout.fixedTabs
+        , Layout.selectedTab model.layoutTab
+        , Layout.onSelectTab LayoutTabClicked
         ]
         { header =
             [ Layout.row
-                [ css "padding-left" "16px"
+                [ css "padding-left" "4px"
+                , css "padding-right" "4px"
+                , css "height" "36px"
                 ]
-                [ Layout.title
+                [ Button.render Mdl [ 0, 0, 0 ] model.mdl
+                    [ Button.icon
+                    , Button.ripple
+                    , Options.onClick CloseClicked
+                    ]
+                    [ Icon.i "close"
+                    ]
+                , Layout.title
                     [ css "align-items" "center"
                     , css "display" "flex"
+                    , css "flex-grow" "1"
+                    , css "justify-content" "center"
+                    , css "font-size" "14px"
+                    , css "-webkit-app-region" "drag"
                     ]
                     [ Icon.view "remove_red_eye"
                         [ css "padding-right" "12px"
+                        , css "font-size" "14px"
                         ]
-                    , span [] [ text <| model.flags.appName ]
                     , span []
                         [ case model.view of
                             BuildListView ->
-                                text ""
+                                text model.flags.appName
                             AddBuildView ->
                                 case model.addBuildData.editing of
                                     Just build ->
-                                        text " / edit"
+                                        text <| getBuildName build.def
                                     Nothing ->
-                                        text " / add"
+                                        text "Add"
                         ]
                     ]
-                , Layout.spacer
                 , case model.view of
                     BuildListView ->
-                        Menu.render Mdl [0] model.mdl
-                            [ Menu.bottomRight
-                            , Menu.ripple
+                        div
+                            [ style
+                                [ displayFlex
+                                , alignItemsCenter
+                                ]
                             ]
-                            [ Menu.item
-                                [ Dialog.openOn "click"
-                                , Menu.onSelect <| BuildsViewMsg BVPrefsClicked
-                                , padding
+                            [
+                                if model.layoutTab /= 1
+                                    && not model.filterVisible then
+                                    Button.render Mdl [0, 0] model.mdl
+                                        [ Button.icon
+                                        , Button.ripple
+                                        , Options.onClick <|
+                                            BuildsViewMsg BVShowFilterClicked
+                                        ]
+                                        [ Icon.i "search"
+                                        ]
+                                else
+                                    -- fill up the space to avoid the title to move
+                                    div [ style [ ("width", "32px")] ] []
+                            , Menu.render Mdl [0, 1] model.mdl
+                                [ Menu.bottomRight
+                                , Menu.ripple
                                 ]
-                                [ i "build"
-                                , text "Preferences"
-                                ]
-                            , Menu.item
-                                [ Dialog.openOn "click"
-                                , Menu.onSelect <| BuildsViewMsg BVAboutClicked
-                                , padding
-                                ]
-                                [ i "help"
-                                , text "About"
-                                ]
-                            , Menu.item
-                                [ Menu.onSelect <| BuildsViewMsg BVQuitClicked
-                                , padding
-                                ]
-                                [ i "close"
-                                , text "Quit"
+                                [ Menu.item
+                                    [ Menu.onSelect <| BuildsViewMsg BVAddBuildClicked
+                                    ]
+                                    [ i "add"
+                                    , text "Add builds"
+                                    ]
+                                , Menu.item
+                                    [ Dialog.openOn "click"
+                                    , Menu.onSelect <| BuildsViewMsg BVShareAllClicked
+                                    , padding
+                                    ]
+                                    [ i "share"
+                                    , text "Share builds"
+                                    ]
+                                , Menu.item
+                                    [ Dialog.openOn "click"
+                                    , Menu.onSelect <| BuildsViewMsg BVPrefsClicked
+                                    , padding
+                                    , Menu.divider
+                                    ]
+                                    [ i "build"
+                                    , text "Preferences"
+                                    ]
+                                , Menu.item
+                                    [ Dialog.openOn "click"
+                                    , Menu.onSelect <| BuildsViewMsg BVAboutClicked
+                                    , padding
+                                    ]
+                                    [ i "help"
+                                    , text "About"
+                                    ]
+                                , Menu.item
+                                    [ Menu.onSelect <| BuildsViewMsg BVQuitClicked
+                                    , padding
+                                    ]
+                                    [ i "close"
+                                    , text "Quit"
+                                    ]
                                 ]
                             ]
 
                     AddBuildView ->
-                        text ""
+                        Button.render Mdl [0, 2] model.mdl
+                            [ Button.icon
+                            , Button.ripple
+                            , Options.onClick <| AddBuildViewMsg ABCancelClicked
+                            ]
+                            [ Icon.i "close"
+                            ]
                 ]
             ]
         , drawer = []
-        , tabs = ([], [])
+        , tabs =
+            (
+                case model.view of
+                    BuildListView ->
+                        [ text "Builds"
+                        , text "Tags"
+                        ]
+                    AddBuildView ->
+                        []
+            ,
+                []
+            )
         , main =
             (
             if model.loaded then
@@ -138,7 +212,109 @@ view model =
                 ]
 
         }
-        |> Material.Scheme.topWithScheme Color.BlueGrey Color.Blue
+        |> Material.Scheme.top --WithScheme Color.BlueGrey Color.Blue
+
+
+viewBuildList : Model -> List (Html Msg)
+viewBuildList model =
+    [
+        if List.isEmpty model.builds then
+            div
+                [ style
+                    [ position "absolute"
+                    , top0
+                    , bottom0
+                    , left0
+                    , right0
+                    , displayFlex
+                    ]
+                ]
+                [ div
+                    [ style
+                        [ displayFlex
+                        , alignItemsCenter
+                        , flexGrow
+                        ]
+                    ]
+                    [ Options.styled p
+                        [ Typo.center
+                        , Typo.subhead
+                        , css "width" "100%"
+                        ]
+                        [ text <|
+                            if model.dataFileNotFound then
+                                "Welcome to " ++ model.flags.appName ++ " ! Add builds using the main menu."
+                            else
+                                if String.isEmpty model.filterText then
+                                    "No builds are monitored. Add builds using main menu."
+                                else
+                                    "No builds matching criteria"
+                        ]
+                    ]
+                ]
+        else
+            div
+                [ style
+                    [ positionAbsolute
+                    , top0
+                    , bottom0
+                    , right0
+                    , left0
+                    , ( "overflow", "hidden" )
+                    , displayFlex
+                    ]
+                ]
+                [ div
+                    [ style
+                        [ displayFlex
+                        , flexColumn
+                        , flexGrow
+                        ]
+                    ]
+                    [ div
+                        []
+                        [ viewSearchBar model ]
+                    , div
+                        [ style
+                            [ flexGrow
+                            , positionRelative
+                            ]
+                        ]
+                        [ div
+                            [ style
+                                [ positionAbsolute
+                                , top0
+                                , bottom0
+                                , right0
+                                , left0
+                                , ( "overflow-y", "auto" )
+                                ]
+                            ]
+                            [ case model.layoutTab of
+                                0 ->
+                                    viewBuilds model
+                                1 ->
+                                    viewTags model
+                                _ ->
+                                    Debug.crash "unknown tab"
+                            ]
+                        ]
+                    ]
+                ]
+    ]
+
+nbCols = 2
+
+
+viewBuilds : Model -> Html Msg
+viewBuilds model =
+    div
+        [ style [ displayFlex, flexColumn ] ]
+        ( model.builds
+                |> List.filter (\b -> not b.filtered)
+                |> List.indexedMap
+                    (viewDefAndResult model)
+        )
 
 
 viewDefAndResult : Model -> Int -> Build -> Html Msg
@@ -170,17 +346,8 @@ viewDefAndResult model index b =
                         Nothing ->
                             ("play_circle_outline", Color.Grey)
 
-        wordWrap =
-            [ css "text-overflow" "ellipsis"
-            , css "white-space" "nowrap"
-            , css "overflow" "hidden"
-            ]
-
         padding =
             css "padding-right" "18px"
-
-        liClick =
-            Options.onClick (BuildsViewMsg (BVBuildClicked b))
 
         (browseEnabledAttr, browseSelectAttr) =
             case b.result of
@@ -192,135 +359,262 @@ viewDefAndResult model index b =
                     ( Menu.disabled
                     , Options.nop
                     )
+        tags =
+            getCommonBuildData b.def
+                |> .tags
+
+        onBuildClicked =
+            Html.Events.onClick (BuildsViewMsg (BVBuildClicked b))
     in
-        Lists.li
-            [ Lists.withSubtitle
-            , css "overflow" "inherit"
+        div
+            [ style <|
+                [ displayFlex
+                , alignItemsCenter
+                , ("padding-top", "8px")
+                , ("padding-bottom", "8px")
+                ] ++
+                (
+                    if b.hover then
+                        [ ("background-color", "#EEEEEE")
+                        , ("cursor", "pointer")
+                        ]
+                    else
+                        []
+                )
+            , Html.Events.onMouseEnter <| BuildsViewMsg (BVBuildHover True b)
+            , Html.Events.onMouseLeave <| BuildsViewMsg (BVBuildHover False b)
             ]
-            [ Lists.content
-                [ liClick
-                , b.fetchError
-                    |> Maybe.map (\_ -> Dialog.openOn "click")
-                    |> Maybe.withDefault Options.nop
-                , cs "bm-clickable"
+            [ div
+                [ style [ displayFlex, alignItemsCenter ]
                 ]
-                [ Lists.avatarIcon
-                    avatarIcon
-                    [ Color.background (Color.color hue Color.S500) ]
-                , Options.div
-                    wordWrap
-                    [ text <| getBuildName b.def
-                    ]
-                , Lists.subtitle
-                    wordWrap
-                    [ text <|
-                        case b.def of
-                            BambooDef _ d ->
-                                d.serverUrl
-                            TravisDef _ d ->
-                                d.serverUrl
+                [ Icon.view avatarIcon
+                    [ Color.background (Color.color hue Color.S500)
+                    , css "border-radius" "50%"
+                    , css "color" "white"
+                    , css "margin-left" "8px"
+                    , css "margin-right" "8px"
+                    , Icon.size48
                     ]
                 ]
-            , Menu.render Mdl [ 1, index ] model.mdl
-                [ Menu.bottomRight
-                , Menu.ripple
+            , div
+                [ style <|
+                    [ displayFlex
+                    , flexColumn
+                    , flexGrow
+                    , ("overflow", "hidden")
+                    ]
+                , onBuildClicked
                 ]
-                [ Menu.item
-                    [ browseSelectAttr
-                    , browseEnabledAttr
-                    , padding
-                    ]
-                    [ i "launch"
-                    , text "Browse"
-                    ]
-                , Menu.item
-                    [ Menu.onSelect <| BuildsViewMsg (BVEditClicked b)
-                    , padding
-                    ]
-                    [ i "edit"
-                    , text "Edit"
-                    ]
-                , Menu.item
-                    [ Menu.onSelect <| BuildsViewMsg (BVCopyClicked b)
-                    , padding
-                    ]
-                    [ i "content_copy"
-                    , text "Duplicate"
-                    ]
-                , Menu.item
-                    [ Menu.onSelect <| BuildsViewMsg (BVDeleteClicked b)
-                    ]
-                    [ i "delete"
-                    , text "Delete"
-                    ]
+                [ Options.div
+                    (
+                        [ Typo.subhead
+                        , css "line-height" "inherit"
+                        ] ++ wordWrap
+                    )
+                    [ text <| getBuildName b.def ]
+                ,
+                    if List.isEmpty tags then
+                        text ""
+                    else
+                        div [ style [ flexGrow, displayFlex, flexWrap ] ]
+                            ( getCommonBuildData b.def
+                                |> .tags
+                                |> List.map (\tag ->
+                                    Chip.span
+                                        [ css "margin" "0px 4px 4px 0px"
+                                        , css "height" "20px"
+                                        , css "line-height" "20px"
+                                        , css "padding" "0 6px"
+                                        ]
+                                        [ Chip.content
+                                            [ css "font-size" "10px" ]
+                                            [ text tag ]
+                                        ]
+                                )
+                            )
                 ]
+            ,
+                if b.hover then
+                    div []
+                        [ Menu.render Mdl [ 1, index ] model.mdl
+                            [ Menu.bottomRight
+                            , Menu.ripple
+                            ]
+                            [ Menu.item
+                                [ browseSelectAttr
+                                , browseEnabledAttr
+                                , padding
+                                ]
+                                [ i "launch"
+                                , text "Browse"
+                                ]
+                            , Menu.item
+                                [ Menu.onSelect <| BuildsViewMsg (BVEditClicked b)
+                                , padding
+                                ]
+                                [ i "edit"
+                                , text "Edit"
+                                ]
+                            , Menu.item
+                                [ Menu.onSelect <| BuildsViewMsg (BVTagsClicked b)
+                                , padding
+                                , Dialog.openOn "click"
+                                ]
+                                [ i "label_outline"
+                                , text "Tag"
+                                ]
+                            , Menu.item
+                                [ Menu.onSelect <| BuildsViewMsg (BVCopyClicked b)
+                                , padding
+                                ]
+                                [ i "content_copy"
+                                , text "Duplicate"
+                                ]
+                            , Menu.item
+                                [ Dialog.openOn "click"
+                                , Menu.onSelect <| BuildsViewMsg (BVShareClicked b)
+                                , padding
+                                , Menu.divider
+                                ]
+                                [ i "share"
+                                , text "Share"
+                                ]
+                            , Menu.item
+                                [ Menu.onSelect <| BuildsViewMsg (BVDeleteClicked b)
+                                ]
+                                [ i "delete"
+                                , text "Delete"
+                                ]
+                            ]
+                        ]
+                else
+                    div
+                        [ style
+                            [ ("min-width", "32px")
+                            , ("max-width", "32px")
+                            ]
+                        ]
+                        []
             ]
 
+viewTags : Model -> Html Msg
+viewTags model =
+    div
+        [ style
+            [ ("display", "grid")
+            , ("grid-template-columns", "auto auto")
+            ]
+        ]
+        ( model.tagsData
+            |> split nbCols
+            |> List.indexedMap (\rowIndex row ->
+                row
+                    |> List.indexedMap (\colIndex cell ->
+                        div
+                            [ style
+                                [ ("grid-column-start", toString <| colIndex + 1)
+                                , ("grid-column-start", toString <| colIndex + 1)
+                                , ("grid-row-start", toString <| rowIndex + 1)
+                                , ("grid-row-start", toString <| rowIndex + 1)
+                                ]
+                            ]
+                            [ viewTag cell
+                            ]
+                    )
+            )
+            |> List.concat
+        )
+
+white : Options.Property c m
+white =
+  Color.text Color.white
 
 
-viewBuildList : Model -> List (Html Msg)
-viewBuildList model =
-    let
-        addButtonDiv =
-          div
-          []
-          [ Button.render Mdl [0] model.mdl
-              [ Button.fab
-              , Button.ripple
-              , Button.colored
-              , Options.onClick <| BuildsViewMsg BVAddBuildClicked
-              , css "position" "fixed"
-              , css "bottom" "24px"
-              , css "right" "24px"
-              ]
-              [ Icon.i "add"]
-          ]
-    in
-
-    [
-        if List.isEmpty model.builds then
-            div
-                [ style
-                    [ position "absolute"
-                    , top0
-                    , bottom0
-                    , left0
-                    , right0
-                    , displayFlex
-                    ]
-                ]
+viewTag : TagsListItem -> Html Msg
+viewTag tagsListItem =
+    div [ style [ ("padding", "8px")] ]
+        [ Card.view
+            [ Color.background <|
+                if tagsListItem.nbRed == 0 then
+                    Color.color Color.Green Color.S500
+                else
+                    Color.color Color.Red Color.S500
+            , css "width" "100%"
+            , css "overflow" "hidden"
+            , if tagsListItem.raised then Elevation.e8 else Elevation.e2
+            , Elevation.transition 250
+            , Options.onMouseEnter (BuildsViewMsg <| BVRaiseTag tagsListItem.tag)
+            , Options.onMouseLeave (BuildsViewMsg <| BVRaiseTag "")
+            ]
+            [ Card.title
+                wordWrap
+                [ Card.head [ white ] [ text tagsListItem.tag ] ]
+            , Card.text [ white ]
                 [ div
                     [ style
-                        [ displayFlex
-                        , alignItemsCenter
-                        , flexGrow
-                        ]
+                         [ displayFlex
+                         , alignItemsCenter
+                         ]
                     ]
-                    [ Options.styled p
-                        [ Typo.center
-                        , Typo.subhead
-                        , css "width" "100%"
+                    [ Icon.i "mood"
+                    , Options.span
+                        [ Typo.headline
+                        , css "padding-left" "4px"
+                        , css "padding-right" "16px"
                         ]
-                        [ text <|
-                            if model.dataFileNotFound then
-                                "Welcome to " ++ model.flags.appName ++ " ! Add builds using the bottom-right button."
-                            else
-                                "No builds are monitored. Add builds using the bottom-right button."
+                        [ text <| toString tagsListItem.nbGreen ]
+                    , Icon.i "mood_bad"
+                    , Options.span
+                        [ Typo.headline
+                        , css "padding-left" "8px"
                         ]
+                        [ text <| toString tagsListItem.nbRed ]
                     ]
-                , addButtonDiv
                 ]
-        else
-          div
-          []
-          [ Lists.ul
+            ]
+        ]
+
+viewSearchBar : Model -> Html Msg
+viewSearchBar model =
+    Options.div
+        [ Elevation.e2
+        , css "padding" "8px"
+        , css "display" <|
+            if model.layoutTab /= 1 && model.filterVisible then
+                "block"
+            else
+                "none"
+        ]
+        [ div
+            [ style
+                [ displayFlex
+                , alignItemsCenter
+                ]
+            ]
+            [ Textfield.render Mdl [ 100 ] model.mdl
+                [ Textfield.label "Filter builds..."
+                , Options.css "flex-grow" "1"
+                , Options.onInput (\s -> BuildsViewMsg (BVFilterChanged s))
+                , Textfield.value model.filterText
+                , Options.id "filter-box"
+                ]
                 []
-                ( model.builds
-                    |> List.indexedMap (viewDefAndResult model)
-                )
-          , addButtonDiv
-          ]
-    ]
+            , div
+                [ style
+                    [ displayFlex
+                    , alignItemsCenter
+                    ]
+                ]
+                [ Button.render Mdl [ 102 ] model.mdl
+                    [ Button.ripple
+                    , Button.icon
+                    , Options.onClick <| BuildsViewMsg BVClearFilter
+                    ]
+                    [ Icon.i "close"
+                    ]
+                ]
+            ]
+        ]
 
 
 viewAddTabs : Model -> Html Msg
@@ -329,7 +623,7 @@ viewAddTabs model =
         Just build ->
             text ""
         Nothing ->
-            Tabs.render Mdl [1] model.mdl
+            Tabs.render Mdl [3] model.mdl
                 [ Tabs.ripple
                 , Tabs.activeTab model.addBuildData.tab
                 ,
@@ -349,6 +643,10 @@ viewAddTabs model =
                     ]
                     [ text "Travis"
                     ]
+                , Tabs.label
+                    [ Options.center
+                    ]
+                    [ text "Import JSON"]
                 ]
                 []
 
@@ -357,22 +655,29 @@ viewAddBuild : Model -> List (Html Msg)
 viewAddBuild model =
     let
         (rows, canSave) =
-            if model.addBuildData.tab == 0 then
-                ( bambooRows model
-                , Bamboo.canSave model.addBuildData.bamboo
-                )
-            else
-                ( travisRows model
-                , Travis.canSave model.addBuildData.travis
-                )
+            case model.addBuildData.tab of
+                0 ->
+                    ( bambooRows model
+                    , Bamboo.canSave model.addBuildData.bamboo
+                    )
+                1 ->
+                    ( travisRows model
+                    , Travis.canSave model.addBuildData.travis
+                    )
+                2 ->
+                    ( importBuildRows model
+                    , not <| String.isEmpty model.addBuildData.importText
+                    )
+                _ ->
+                    Debug.crash "unhandled tab"
     in
         [ viewAddTabs model
         , Grid.grid
             []
             ( rows ++
                 [ Grid.cell
-                    [ Grid.size Grid.All 6 ]
-                    [ Button.render Mdl [10] model.mdl
+                    [ Grid.size Grid.All 12 ]
+                    [ Button.render Mdl [5, 0] model.mdl
                         [ Button.primary
                         , Button.raised
                         , Button.ripple
@@ -387,16 +692,6 @@ viewAddBuild model =
                                 Nothing ->
                                     "Add"
                         ]
-                    ]
-                , Grid.cell
-                    [ Grid.size Grid.All 6 ]
-                    [ Button.render Mdl [11] model.mdl
-                        [ Button.flat
-                        , Button.ripple
-                        , Options.onClick <| AddBuildViewMsg ABCancelClicked
-                        , css "width" "100%"
-                        ]
-                        [ text "Cancel" ]
                     ]
                 ]
             )
@@ -421,7 +716,6 @@ tfOpts rest =
     , Textfield.text_
     , css "width" "100%"
     ] ++ rest
-
 
 withHelp : String -> Html Msg -> Html Msg
 withHelp txt html =
@@ -449,7 +743,7 @@ bambooRows model =
     in
         [ formRow <|
             withHelp "URL (and port if any) of the Bamboo server" <|
-            Textfield.render Mdl [2] model.mdl
+            Textfield.render Mdl [6, 0] model.mdl
                 ( tfOpts
                     [ Textfield.label "Server URL"
                     , Textfield.value bamboo.serverUrl
@@ -460,7 +754,7 @@ bambooRows model =
                 []
         , formRow <|
             withHelp "Plan key, usually looks like FOO-BAR" <|
-            Textfield.render Mdl [3] model.mdl
+            Textfield.render Mdl [6, 1] model.mdl
                 ( tfOpts
                     [ Textfield.label "Plan"
                     , Textfield.value bamboo.plan
@@ -471,7 +765,7 @@ bambooRows model =
                 []
         , formRow <|
             withHelp "Bamboo username (if auth needed)" <|
-            Textfield.render Mdl [4] model.mdl
+            Textfield.render Mdl [6, 2] model.mdl
                 ( tfOpts
                     [ Textfield.label "Username"
                     , Textfield.value bamboo.username
@@ -481,7 +775,7 @@ bambooRows model =
                 []
         , formRow <|
             withHelp "Bamboo password (if auth needed)" <|
-            Textfield.render Mdl [5] model.mdl
+            Textfield.render Mdl [6, 3] model.mdl
                 ( tfOpts
                     [ Textfield.label "Password"
                     , Textfield.value bamboo.password
@@ -491,6 +785,23 @@ bambooRows model =
                 []
         ]
 
+
+importBuildRows : Model -> List (Grid.Cell Msg)
+importBuildRows model =
+    [ formRow <|
+        withHelp "JSON data is obtained by \"Sharing\" builds." <|
+        Textfield.render Mdl [7] model.mdl
+            ( tfOpts
+                [ Textfield.label "Paste JSON data here"
+                , Textfield.floatingLabel
+                , Textfield.value model.addBuildData.importText
+                , Textfield.textarea
+                , Textfield.rows 10
+                , Options.onInput <| onInputAbv ABImportTextChanged
+                ]
+            )
+            []
+    ]
 
 travisRows : Model -> List (Grid.Cell Msg)
 travisRows model =
@@ -502,7 +813,7 @@ travisRows model =
     in
         [ formRow <|
             withHelp "URL of the Travis server (e.g. https://travis.org)" <|
-            Textfield.render Mdl [6] model.mdl
+            Textfield.render Mdl [8, 1] model.mdl
                 ( tfOpts
                     [ Textfield.label "Server URL"
                     , Textfield.value travis.serverUrl
@@ -513,7 +824,7 @@ travisRows model =
                 []
         , formRow <|
             withHelp "The repository (e.g. rails/rails)" <|
-            Textfield.render Mdl [7] model.mdl
+            Textfield.render Mdl [8, 2] model.mdl
                 ( tfOpts
                     [ Textfield.label "Repository"
                     , Textfield.value travis.repository
@@ -524,7 +835,7 @@ travisRows model =
                 []
         , formRow <|
             withHelp "Branch to watch (e.g. master)" <|
-            Textfield.render Mdl [8] model.mdl
+            Textfield.render Mdl [8, 3] model.mdl
                 ( tfOpts
                     [ Textfield.label "Branch"
                     , Textfield.floatingLabel
@@ -537,7 +848,7 @@ travisRows model =
                 []
         , formRow <|
             withHelp "Travis token if needed (as provided by the travis cmd line)" <|
-            Textfield.render Mdl [9] model.mdl
+            Textfield.render Mdl [8, 4] model.mdl
                 ( tfOpts
                     [ Textfield.label "Token"
                     , Textfield.value travis.token
@@ -554,6 +865,8 @@ dialog model =
         AboutDialog -> aboutDialog model
         PreferencesDialog -> preferencesDialog model
         FetchErrorDialog build -> fetchErrorDialog model build
+        ShareBuildDialog builds -> shareBuildDialog model builds
+        TagsDialog buildId tagsText -> tagsDialog model buildId tagsText
 
 
 aboutDialog : Model -> Html Msg
@@ -591,7 +904,7 @@ aboutDialog model =
             ]
         , Dialog.actions []
             [ Button.render Mdl
-                [ 20 ]
+                [ 14 ]
                 model.mdl
                 [ Dialog.closeOn "click" ]
                 [ text "Dismiss" ]
@@ -610,7 +923,7 @@ preferencesDialog model =
                     [ text "Enable notifications"
                     ]
                 )
-                ( Toggles.switch Mdl [0] model.mdl
+                ( Toggles.switch Mdl [9, 1] model.mdl
                     [ Options.onToggle <| BuildsViewMsg BVPrefsToggleNotif
                     , Toggles.ripple
                     , Toggles.value model.preferences.enableNotifications
@@ -621,7 +934,7 @@ preferencesDialog model =
                 [ css "height" "18px"
                 ]
                 []
-            , Textfield.render Mdl [ 22 ] model.mdl
+            , Textfield.render Mdl [9, 2] model.mdl
                 [ Textfield.label "Polling interval (seconds)"
                 , Textfield.floatingLabel
                 , Textfield.text_
@@ -634,7 +947,7 @@ preferencesDialog model =
             ]
         , Dialog.actions []
             [ Button.render Mdl
-                [ 21 ]
+                [ 9, 3 ]
                 model.mdl
                 [ Dialog.closeOn "click" ]
                 [ text "Done" ]
@@ -662,7 +975,7 @@ fetchErrorDialog model build =
                     ]
                 , Dialog.actions []
                     [ Button.render Mdl
-                        [ 23 ]
+                        [ 18 ]
                         model.mdl
                         [ Dialog.closeOn "click" ]
                         [ text "Got it" ]
@@ -670,3 +983,149 @@ fetchErrorDialog model build =
                 ]
         Nothing ->
             text ""
+
+
+shareBuildDialog : Model -> List Build -> Html Msg
+shareBuildDialog model builds =
+    let
+        json =
+            Json.Encode.encode 4 <|
+                Json.Encode.list <|
+                    List.map
+                    ( \b ->
+                        Json.Encode.object <|
+                            case b.def of
+                            BambooDef cd d ->
+                                Bamboo.encodeBambooData False d
+                                    |> List.append [ encodeTags cd.tags ]
+                            TravisDef cd d ->
+                                Travis.encodeTravisData False d
+                                    |> List.append [ encodeTags cd.tags ]
+                    )
+                    builds
+    in
+        Dialog.view
+            []
+            [ Dialog.title [] [ text "Share" ]
+            , Dialog.content []
+                [ p []
+                    [ text
+                        <| "Copy the data below, and send it via email/chat/whatever. "
+                            ++ "The recipient will then be able to import it. "
+                    ]
+                , Textfield.render Mdl [9, 0] model.mdl
+                    [ Textfield.textarea
+                    , Textfield.rows 9
+                    , Textfield.value json
+                    , Options.id "export-data"
+                    ]
+                    []
+                , model.addBuildData.importError
+                    |> Maybe.map (\importError ->
+                        p []
+                            [ text <|
+                                "Error importing project : " ++ (toString importError)
+                            ]
+                    )
+                    |> Maybe.withDefault (text "")
+                ]
+            , Dialog.actions []
+                [ div
+                    [ style
+                        [ displayFlex
+                        ]
+                    ]
+                    [ div
+                        [ style
+                            [ flexGrow ]
+                        ]
+                        [ Button.render Mdl [ 9, 1 ] model.mdl
+                            [ Options.onClick <| CopyToClipboard json
+                            ]
+                            [ text "Copy" ]
+                        , Button.render Mdl [ 9, 2 ] model.mdl
+                            [ Dialog.closeOn "click" ]
+                            [ text "Dismiss" ]
+                        ]
+                    ]
+                ]
+            ]
+
+
+tagsDialog : Model -> Int -> String -> Html Msg
+tagsDialog model buildId tagsText =
+    let
+        build =
+            getBuildById model buildId
+
+        tags =
+            case build of
+                Just b ->
+                    getCommonBuildData b.def
+                        |> .tags
+                        |> List.map (\tag ->
+                            Chip.button
+                                [ Chip.deleteIcon "cancel"
+                                , Chip.deleteClick (BuildsViewMsg (BVDeleteTagClicked tag))
+                                , css "margin" "5px 5px"
+                                ]
+                                [ Chip.content []
+                                    [ text tag ]
+                                ]
+                        )
+
+                Nothing ->
+                    [ text "build not found"
+                    ]
+    in
+        Dialog.view
+            []
+            [ Dialog.title [] [ text "Tags" ]
+            , Dialog.content []
+                [ div
+                    [ style
+                        [ displayFlex
+                        , flexColumn
+                        ]
+                    ]
+                    [ div
+                        [ style
+                            [ displayFlex
+                            , flexGrow
+                            , ( "flex-wrap", "wrap" )
+                            ]
+                        ]
+                        tags
+                    , Textfield.render Mdl [ 20, 0 ] model.mdl
+                        [ Textfield.label "Add tag(s) and press ENTER"
+                        , Textfield.floatingLabel
+                        , Options.onInput <| (\s -> BuildsViewMsg (BVTagsChanged s))
+                        , Textfield.value tagsText
+                        , Options.on
+                            "keydown"
+                            ( Json.field "keyCode" Json.int
+                                |> Json.map (\i -> BuildsViewMsg (BVTagsKeyUp i))
+                            )
+                        , css "width" "100%"
+                        ]
+                        []
+                    ]
+                ]
+            , Dialog.actions []
+                [ div
+                    [ style
+                        [ displayFlex
+                        ]
+                    ]
+                    [ div
+                        [ style
+                            [ flexGrow ]
+                        ]
+                        [ Button.render Mdl [ 20, 2 ] model.mdl
+                            [ Dialog.closeOn "click"
+                            ]
+                            [ text "Done" ]
+                        ]
+                    ]
+                ]
+            ]

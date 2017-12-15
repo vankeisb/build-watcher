@@ -20,6 +20,8 @@ type ABVMsg
     | ABTravisTokenChanged String
     | ABTravisRepoChanged String
     | ABTravisBranchChanged String
+    | ABImportTextChanged String
+
 
 type BVMsg
     = BVAddBuildClicked
@@ -33,12 +35,24 @@ type BVMsg
     | BVBuildClicked Build
     | BVQuitClicked
     | BVCopyClicked Build
+    | BVFilterChanged String
+    | BVClearFilter
+    | BVShareClicked Build
+    | BVShareAllClicked
+    | BVShowFilterClicked
+    | BVFilterFocusResult
+    | BVTagsClicked Build
+    | BVDeleteTagClicked String
+    | BVTagsChanged String
+    | BVTagsKeyUp Int
+    | BVRaiseTag String
+    | BVBuildHover Bool Build
 
 type Msg
     = BuildsViewMsg BVMsg
     | AddBuildViewMsg ABVMsg
     | Tick Time
-    | FetchResult BuildDef (Result Http.Error BuildResult)
+    | FetchResult BuildDef (Result Http.Error (BuildResult, BuildDef))
     | Mdl (Material.Msg Msg)
     | OnDataLoadError DataLoadError
     | OnDataLoadFileNotFound DataLoadFileNotFound
@@ -47,3 +61,7 @@ type Msg
     | OnDataSaveSuccess DataSaveSuccess
     | Snackbar (Snackbar.Msg Int)
     | OpenUrl String
+    | CopyToClipboard String
+    | OnCopiedToClipboard String
+    | LayoutTabClicked Int
+    | CloseClicked
