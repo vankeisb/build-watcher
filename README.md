@@ -27,24 +27,6 @@ Just toss the .app into applications folder, as usual.
 The exe needs to be along all other files in the expanded dir.
 Best create a link to it.
 
-# Download
-
-Binaries can be found at :
-
-http://rvkb.com/build-watcher
-
-Those are zipped apps, no installer, no auto-update.
-Download, unzip, and run the executable.
-
-## Mac
-
-Just toss the .app into applications folder, as usual.
-
-## Windows
-
-The exe needs to be along all other files in the expanded dir.
-Best create a link to it.
-
 # Development
 
 The app is written in Elm with ports/JS for the Electron APIs.
