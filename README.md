@@ -22,7 +22,7 @@ Download, unzip, and run the executable.
 
 Just toss the .app into applications folder, as usual.
 
-## Windows
+## si ça ramWindows
 
 The exe needs to be along all other files in the expanded dir.
 Best create a link to it.

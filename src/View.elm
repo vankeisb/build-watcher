@@ -303,9 +303,6 @@ viewBuildList model =
                 ]
     ]
 
-nbCols = 2
-
-
 viewBuilds : Model -> Html Msg
 viewBuilds model =
     div
@@ -502,27 +499,15 @@ viewTags model =
     div
         [ style
             [ ("display", "grid")
-            , ("grid-template-columns", "auto auto")
+            , ("grid-template-columns", "repeat(auto-fill, minmax(150px, 1fr) ) ")
             ]
         ]
         ( model.tagsData
-            |> split nbCols
-            |> List.indexedMap (\rowIndex row ->
-                row
-                    |> List.indexedMap (\colIndex cell ->
-                        div
-                            [ style
-                                [ ("grid-column-start", toString <| colIndex + 1)
-                                , ("grid-column-start", toString <| colIndex + 1)
-                                , ("grid-row-start", toString <| rowIndex + 1)
-                                , ("grid-row-start", toString <| rowIndex + 1)
-                                ]
-                            ]
-                            [ viewTag cell
-                            ]
-                    )
+            |> List.map (\cell ->
+                div []
+                    [ viewTag cell
+                    ]
             )
-            |> List.concat
         )
 
 white : Options.Property c m
@@ -547,8 +532,13 @@ viewTag tagsListItem =
             , Options.onMouseLeave (BuildsViewMsg <| BVRaiseTag "")
             ]
             [ Card.title
-                wordWrap
-                [ Card.head [ white ] [ text tagsListItem.tag ] ]
+                [ css "overflow" "hidden"
+                , css "display" "block"
+                ]
+                [ Card.head
+                    (white :: (css "display" "block") :: wordWrap)
+                    [ text tagsListItem.tag ]
+                ]
             , Card.text [ white ]
                 [ div
                     [ style
