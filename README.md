@@ -7,8 +7,30 @@ Electron-based app for monitoring C.I. builds from various servers, in a single 
 * desktop notifications
 * multi server (Bamboo and Travis for now)
 
+# Download
+
+Binaries can be found at :
+
+http://rvkb.com/build-watcher
+
+Those are zipped apps, no installer, no auto-update.
+Download, unzip, and run the executable.
+
+## Mac
+
+Just toss the .app into applications folder, as usual.
+
+## Windows
+
+The exe needs to be along all other files in the expanded dir.
+Best create a link to it.
+
 # Development
+
+The app is written in Elm with ports/JS for the Electron APIs.
 
     npm install
     npm run build
     npm run start/debug
+
+`release-*` npm scripts are provided in `package.json` for releasing the executable.
