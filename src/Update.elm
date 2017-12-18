@@ -570,25 +570,16 @@ updateBuildsView bvm model =
 
 
         BVAboutClicked ->
-            noCmd <|
-                { model | dialogKind = AboutDialog }
+            showDialog model AboutDialog
 
         BVPrefsClicked ->
-            noCmd <|
-                { model | dialogKind = PreferencesDialog }
+            showDialog model PreferencesDialog
 
         BVShareClicked build ->
-            noCmd <|
-                { model | dialogKind = ShareBuildDialog [ build ] }
+            showDialog model <| ShareBuildDialog [ build ]
 
         BVTagsClicked build ->
-            noCmd <|
-                { model
-                    | dialogKind =
-                        TagsDialog
-                         (getDefId build.def)
-                         ""
-                }
+            showDialog model <| TagsDialog (getDefId build.def) ""
 
         BVPrefsToggleNotif ->
             updatePrefsAndSave
@@ -620,12 +611,7 @@ updateBuildsView bvm model =
                 Nothing ->
                     case b.fetchError of
                         Just err ->
-                            (
-                                { model
-                                    | dialogKind = FetchErrorDialog b
-                                }
-                            , Cmd.none
-                            )
+                            showDialog model <| FetchErrorDialog b
                         Nothing ->
                             (model, Cmd.none)
 
@@ -645,10 +631,7 @@ updateBuildsView bvm model =
                 ""
 
         BVShareAllClicked ->
-            noCmd <|
-                { model
-                    | dialogKind = ShareBuildDialog model.builds
-                }
+            showDialog model <| ShareBuildDialog model.builds
 
         BVShowFilterClicked ->
             ( { model | filterVisible = True }
@@ -673,11 +656,12 @@ updateBuildsView bvm model =
 
         BVTagsChanged s ->
             withTagsDialogStuff model (\build tagsText ->
-                { model
-                    | dialogKind = TagsDialog (getDefId build.def) s
-                }
-                |> noCmd
+                showDialog model <| TagsDialog (getDefId build.def) s
             )
+
+        BVTagClicked tag ->
+            showDialog model
+                <| TagDetailsDialog (computeTagDetailsData model tag)
 
         BVTagsKeyUp keyCode ->
             if keyCode == 13 then
@@ -726,6 +710,11 @@ updateBuildsView bvm model =
                         )
             }
                 |> noCmd
+
+
+showDialog : Model -> DialogKind -> (Model, Cmd Msg)
+showDialog model dialogKind =
+    noCmd { model | dialogKind = dialogKind }
 
 
 updateTags : Model -> Build -> Tags -> (Model, Cmd Msg)

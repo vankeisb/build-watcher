@@ -19,7 +19,7 @@ flexColumn = ("flex-direction", "column")
 flexWrap = ("flex-wrap", "wrap")
 
 
-growLeft left right =
+growLeftOrRight growLeft left right =
     div
         [ style
             [ displayFlex
@@ -29,10 +29,14 @@ growLeft left right =
         ]
         [ div
             [ style
-                [ displayFlex
-                , alignItemsCenter
-                , flexGrow
-                ]
+                (
+                    [ displayFlex
+                    , alignItemsCenter
+                    ] ++
+                        if growLeft then
+                            [ flexGrow ]
+                        else []
+                )
             ]
             [ left
             ]
@@ -45,6 +49,15 @@ growLeft left right =
             [ right
             ]
         ]
+
+
+growRight =
+    growLeftOrRight False
+
+
+growLeft =
+    growLeftOrRight False
+
 
 wordWrapStyles =
     [ ("text-overflow", "ellipsis")
