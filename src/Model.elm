@@ -155,6 +155,14 @@ type DialogKind
     | FetchErrorDialog Build
     | ShareBuildDialog (List Build)
     | TagsDialog BuildId String
+    | TagDetailsDialog TagDetailsData
+
+
+type alias TagDetailsData =
+    { tag : String
+    , greenBuilds : List Build
+    , redBuilds : List Build
+    }
 
 
 type alias Model =
@@ -420,3 +428,49 @@ computeTagListItems builds =
                 |> Dict.toList
                 |> List.map Tuple.second
                 |> List.sortBy .tag
+
+
+getLastKnownBuildStatus : Build -> Status
+getLastKnownBuildStatus build =
+    build.result
+        |> Maybe.map .status
+        |> Maybe.withDefault build.previousStatus
+
+
+computeTagDetailsData : Model -> String -> TagDetailsData
+computeTagDetailsData model tag =
+    let
+        d =
+            model.builds
+                |> List.filter (\build ->
+                    getCommonBuildData build.def
+                        |> .tags
+                        |> List.filter (\t -> t == tag)
+                        |> List.isEmpty
+                        |> not
+                )
+                |> List.foldl (\build details ->
+                    case getLastKnownBuildStatus build of
+                        Green ->
+                            { details
+                                | greenBuilds =
+                                    build :: details.greenBuilds
+                            }
+                        _ ->
+                            { details
+                                | redBuilds =
+                                    build :: details.redBuilds
+                            }
+                )
+                { tag = tag
+                , greenBuilds = []
+                , redBuilds = []
+                }
+
+        sortBuilds builds =
+            builds |> List.sortBy (\b -> getBuildName b.def)
+    in
+        { d
+            | greenBuilds = sortBuilds d.greenBuilds
+            , redBuilds = sortBuilds d.redBuilds
+        }

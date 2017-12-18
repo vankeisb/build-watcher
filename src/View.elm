@@ -530,6 +530,8 @@ viewTag tagsListItem =
             , Elevation.transition 250
             , Options.onMouseEnter (BuildsViewMsg <| BVRaiseTag tagsListItem.tag)
             , Options.onMouseLeave (BuildsViewMsg <| BVRaiseTag "")
+            , Options.onClick (BuildsViewMsg <| BVTagClicked tagsListItem.tag)
+            , Dialog.openOn "click"
             ]
             [ Card.title
                 [ css "overflow" "hidden"
@@ -857,6 +859,7 @@ dialog model =
         FetchErrorDialog build -> fetchErrorDialog model build
         ShareBuildDialog builds -> shareBuildDialog model builds
         TagsDialog buildId tagsText -> tagsDialog model buildId tagsText
+        TagDetailsDialog details -> tagDetailsDialog model details
 
 
 aboutDialog : Model -> Html Msg
@@ -1042,7 +1045,7 @@ shareBuildDialog model builds =
             ]
 
 
-tagsDialog : Model -> Int -> String -> Html Msg
+tagsDialog : Model -> BuildId -> String -> Html Msg
 tagsDialog model buildId tagsText =
     let
         build =
@@ -1100,6 +1103,94 @@ tagsDialog model buildId tagsText =
                         ]
                         []
                     ]
+                ]
+            , Dialog.actions []
+                [ div
+                    [ style
+                        [ displayFlex
+                        ]
+                    ]
+                    [ div
+                        [ style
+                            [ flexGrow ]
+                        ]
+                        [ Button.render Mdl [ 20, 2 ] model.mdl
+                            [ Dialog.closeOn "click"
+                            ]
+                            [ text "Done" ]
+                        ]
+                    ]
+                ]
+            ]
+
+
+tagDetailsDialog : Model -> TagDetailsData -> Html Msg
+tagDetailsDialog model details =
+    let
+        txt b =
+            text <| getBuildName b.def
+        elem b =
+            case b.result of
+                Just result ->
+                    a
+                        [ href "#"
+                        , onWithOptions
+                            "click"
+                            { preventDefault = True
+                            , stopPropagation = True
+                            }
+                            (Json.succeed (OpenUrl result.url))
+                        ]
+                        [ txt b
+                        ]
+                Nothing ->
+                    span
+                        []
+                        [ txt b ]
+        buildElems builds title =
+            if List.isEmpty builds then
+                text ""
+            else
+                div
+                    []
+                    [ title
+                    , ul
+                        []
+                        ( builds
+                            |> List.map (\b ->
+                                li
+                                    []
+                                    [ elem b ]
+                            )
+                        )
+                    ]
+
+        titleRow isGreen =
+            Options.div
+                [ Typo.title ]
+                [ growRight
+                    ( Icon.i <|
+                        if isGreen then "mood" else "mood_bad"
+                    )
+                    ( text "Green" )
+                ]
+    in
+        Dialog.view
+            []
+            [ Dialog.title [] [ text details.tag ]
+            , Dialog.content []
+                [ buildElems
+                    details.redBuilds
+                    ( growRight
+                        (Icon.i "mood_bad")
+                        ( Options.span [ Typo.title ] [ text "Red" ])
+                    )
+                , buildElems
+                    details.greenBuilds
+                    ( growRight
+                        (Icon.i "mood")
+                        (Options.span [ Typo.title ] [ text "Green" ])
+                    )
                 ]
             , Dialog.actions []
                 [ div
