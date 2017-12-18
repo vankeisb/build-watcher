@@ -839,7 +839,7 @@ travisRows model =
                 )
                 []
         , formRow <|
-            withHelp "Travis token if needed (as provided by the travis cmd line)" <|
+            withHelp "GitHub token (if auth needed) " <|
             Textfield.render Mdl [8, 4] model.mdl
                 ( tfOpts
                     [ Textfield.label "Token"
