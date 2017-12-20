@@ -33,7 +33,7 @@ type BVMsg
     | BVPrefsPollingChanged String
     | BVNowReceived Time
     | BVBuildClicked Build
-    | BVQuitClicked
+    | BVCloseClicked
     | BVCopyClicked Build
     | BVFilterChanged String
     | BVClearFilter
@@ -65,4 +65,3 @@ type Msg
     | CopyToClipboard String
     | OnCopiedToClipboard String
     | LayoutTabClicked Int
-    | CloseClicked

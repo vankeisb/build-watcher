@@ -53,26 +53,16 @@ view model =
             [ Layout.row
                 [ css "padding-left" "4px"
                 , css "padding-right" "4px"
-                , css "height" "36px"
                 ]
-                [ Button.render Mdl [ 0, 0, 0 ] model.mdl
-                    [ Button.icon
-                    , Button.ripple
-                    , Options.onClick CloseClicked
-                    ]
-                    [ Icon.i "close"
-                    ]
-                , Layout.title
+                [ Layout.title
                     [ css "align-items" "center"
                     , css "display" "flex"
                     , css "flex-grow" "1"
                     , css "justify-content" "center"
-                    , css "font-size" "14px"
                     , css "-webkit-app-region" "drag"
                     ]
                     [ Icon.view "remove_red_eye"
                         [ css "padding-right" "12px"
-                        , css "font-size" "14px"
                         ]
                     , span []
                         [ case model.view of
@@ -108,49 +98,19 @@ view model =
                                 else
                                     -- fill up the space to avoid the title to move
                                     div [ style [ ("width", "32px")] ] []
-                            , Menu.render Mdl [0, 1] model.mdl
-                                [ Menu.bottomRight
-                                , Menu.ripple
-                                ]
-                                [ Menu.item
-                                    [ Menu.onSelect <| BuildsViewMsg BVAddBuildClicked
-                                    ]
-                                    [ i "add"
-                                    , text "Add builds"
-                                    ]
-                                , Menu.item
-                                    [ Dialog.openOn "click"
-                                    , Menu.onSelect <| BuildsViewMsg BVShareAllClicked
-                                    , padding
-                                    ]
-                                    [ i "share"
-                                    , text "Share builds"
-                                    ]
-                                , Menu.item
-                                    [ Dialog.openOn "click"
-                                    , Menu.onSelect <| BuildsViewMsg BVPrefsClicked
-                                    , padding
-                                    , Menu.divider
-                                    ]
-                                    [ i "build"
-                                    , text "Preferences"
-                                    ]
-                                , Menu.item
-                                    [ Dialog.openOn "click"
-                                    , Menu.onSelect <| BuildsViewMsg BVAboutClicked
-                                    , padding
-                                    ]
-                                    [ i "help"
-                                    , text "About"
-                                    ]
-                                , Menu.item
-                                    [ Menu.onSelect <| BuildsViewMsg BVQuitClicked
-                                    , padding
-                                    ]
-                                    [ i "close"
-                                    , text "Quit"
-                                    ]
-                                ]
+                            ,
+                                case model.view of
+                                    AddBuildView ->
+                                        Button.render Mdl [ 0, 0, 0 ] model.mdl
+                                            [ Button.icon
+                                            , Button.ripple
+                                            , Options.onClick
+                                                <| AddBuildViewMsg ABCancelClicked
+                                            ]
+                                            [ Icon.i "close"
+                                            ]
+                                    _ ->
+                                        text ""
                             ]
 
                     AddBuildView ->
@@ -163,7 +123,7 @@ view model =
                             ]
                 ]
             ]
-        , drawer = []
+        , drawer = viewDrawer model
         , tabs =
             (
                 case model.view of
@@ -213,6 +173,48 @@ view model =
 
         }
         -- |> Material.Scheme.top --WithScheme Color.BlueGrey Color.Blue
+
+
+viewDrawer : Model -> List (Html Msg)
+viewDrawer model =
+    let
+        navItem icon label click openDialog =
+            Layout.link
+                [ Options.when (not openDialog)
+                    <| Options.onClick (Layout.toggleDrawer Mdl)
+                , Options.when openDialog
+                    <| Dialog.openOn "click"
+                ]
+                [ span
+                    [ Html.Events.onClick <|
+                        BuildsViewMsg click
+                    ]
+                    [ i icon
+                    , text label
+                    ]
+                ]
+    in
+        case model.view of
+            BuildListView ->
+                [ Layout.title
+                    [ css "display" "flex"
+                    , css "align-items" "center"
+                    ]
+                    [ i "remove_red_eye"
+                    , text <| model.flags.appName
+                    ]
+                , Layout.navigation
+                    []
+                    [ navItem "add" "Add..." BVAddBuildClicked False
+                    , navItem "share" "Share builds" BVShareAllClicked True
+                    , navItem "build" "Preferences" BVPrefsClicked True
+                    , navItem "help" "About" BVAboutClicked True
+                    , navItem "close" "Hide window" BVCloseClicked False
+                    ]
+                ]
+
+            AddBuildView ->
+                []
 
 
 viewBuildList : Model -> List (Html Msg)

@@ -213,10 +213,6 @@ update msg model =
                 AddBuildView ->
                     model ! []
 
-        CloseClicked ->
-            ( model
-            , Ports.closeWindow ()
-            )
 
         -- Boilerplate: Mdl action handler.
         Mdl msg_ ->
@@ -615,10 +611,8 @@ updateBuildsView bvm model =
                         Nothing ->
                             (model, Cmd.none)
 
-        BVQuitClicked ->
-            ( model
-            , Ports.quit ()
-            )
+        BVCloseClicked ->
+            ( model, Ports.closeWindow () )
 
         BVFilterChanged s ->
             doFilter model s
