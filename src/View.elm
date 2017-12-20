@@ -163,7 +163,7 @@ view model =
                             ]
                 ]
             ]
-        , drawer = []
+        , drawer = [ p [] [ text "toooooo" ]]
         , tabs =
             (
                 case model.view of
