@@ -351,11 +351,11 @@ updateAddBuildView abvm model =
                                 error =
                                     case decoded of
                                         Ok _ -> Nothing
-                                        Err e -> Debug.crash e
+                                        Err e -> Just e
                             in
                                 ( parsedBuildDefs, error )
                         _ ->
-                            Debug.crash "TODO"
+                            Debug.crash "invalid tab"
 
                 newBuilds =
                     ( case abd.editing of
@@ -379,26 +379,34 @@ updateAddBuildView abvm model =
                     |> List.sortBy (\b ->
                         getBuildName b.def
                     )
+
+                newModel =
+                    { model
+                        | counter = model.counter + (List.length newDefs)
+                        , addBuildData =
+                            { abd
+                                | importError = importError
+                            }
+                    }
+                    |> applyFilter
             in
-                updateBuildsAndSave
-                    (
-                        { model
-                            | counter = model.counter + (List.length newDefs)
-                            , addBuildData =
-                                { abd | importError = importError }
-                        }
-                        |> applyFilter
-                    )
-                    newBuilds
-                    ( case abd.editing of
-                        Just editedBuild ->
-                            "Build " ++ (getBuildName editedBuild.def) ++ " updated"
-                        Nothing ->
-                            if List.length newDefs == 1 then
-                                "Build added"
-                            else
-                                (toString <| List.length newDefs) ++ " build(s) added"
-                    )
+                case importError of
+                    Just error ->
+                        newModel
+                            |> noCmd
+                    Nothing ->
+                        updateBuildsAndSave
+                            newModel
+                            newBuilds
+                            ( case abd.editing of
+                                Just editedBuild ->
+                                    "Build " ++ (getBuildName editedBuild.def) ++ " updated"
+                                Nothing ->
+                                    if List.length newDefs == 1 then
+                                        "Build added"
+                                    else
+                                        (toString <| List.length newDefs) ++ " build(s) added"
+                            )
 
         ABBambooServerUrlChanged s ->
             noCmd <|
@@ -487,6 +495,7 @@ updateAddBuildView abvm model =
                 newAbd =
                     { abd
                         | importText = s
+                        , importError = Nothing
                     }
             in
                 noCmd <|
