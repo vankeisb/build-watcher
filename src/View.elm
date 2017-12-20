@@ -212,7 +212,7 @@ view model =
                 ]
 
         }
-        |> Material.Scheme.top --WithScheme Color.BlueGrey Color.Blue
+        -- |> Material.Scheme.top --WithScheme Color.BlueGrey Color.Blue
 
 
 viewBuildList : Model -> List (Html Msg)
