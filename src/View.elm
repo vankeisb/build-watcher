@@ -57,6 +57,7 @@ view model =
                 [ Layout.title
                     [ css "align-items" "center"
                     , css "display" "flex"
+                    , css "margin-left" "48px"
                     , css "flex-grow" "1"
                     , css "justify-content" "center"
                     , css "-webkit-app-region" "drag"
