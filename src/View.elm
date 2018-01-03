@@ -181,17 +181,20 @@ viewDrawer model =
     let
         navItem icon label click openDialog =
             Layout.link
-                [ Options.when (not openDialog)
-                    <| Options.onClick (Layout.toggleDrawer Mdl)
+                [ Options.onClick <| BuildsViewMsg click
+                -- , Options.when (not openDialog)
+                --     <| Options.onClick (Layout.toggleDrawer Mdl)
                 , Options.when openDialog
                     <| Dialog.openOn "click"
                 ]
-                [ span
-                    [ Html.Events.onClick <|
+                [ Options.div
+                    [ css "display" "flex"
+                    , css "align-items" "center"
+                    , Options.onClick <|
                         BuildsViewMsg click
                     ]
                     [ i icon
-                    , text label
+                    , div [] [ text label ]
                     ]
                 ]
     in

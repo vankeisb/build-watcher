@@ -13,6 +13,7 @@ import Ports
 import Task exposing (Task)
 import Time exposing (Time)
 import Travis
+import Material.Layout as Layout
 
 
 init : Flags -> (Model, Cmd Msg)
@@ -502,6 +503,21 @@ updateAddBuildView abvm model =
                     { model
                         | addBuildData = newAbd
                     }
+
+
+-- toggleDrawer : Model -> (Model, Cmd Msg)
+-- toggleDrawer model =
+--     let
+--         (m,c) =
+--             Layout.update Layout.ToggleDrawer model.mdl.layout
+--         mdl =
+--             model.mdl
+--         newMdl =
+--             { mdl
+--                 | layout = m
+--             } |> Debug.log "newMdl"
+--     in
+--         ( { model | mdl = newMdl }, Cmd.none )
 
 
 updateBuildsView : BVMsg -> Model -> (Model, Cmd Msg)
