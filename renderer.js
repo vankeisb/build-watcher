@@ -62,6 +62,13 @@ a.ports.desktopNotification.subscribe(function(data) {
     }
 })
 
+a.ports.invokeExternalTool.subscribe(function(data) {
+    sendToMain({
+        kind: "invoke-external-tool",
+        data: data
+    })
+})
+
 a.ports.quit.subscribe(function() {
     sendToMain({
         kind: "quit"

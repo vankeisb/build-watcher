@@ -42,9 +42,14 @@ growLeftOrRight growLeft left right =
             ]
         , div
             [ style
-                [ displayFlex
-                , alignItemsCenter
-                ]
+                (
+                    [ displayFlex
+                    , alignItemsCenter
+                    ] ++
+                        if not growLeft then
+                            [ flexGrow ]
+                        else []
+                )
             ]
             [ right
             ]
@@ -56,7 +61,7 @@ growRight =
 
 
 growLeft =
-    growLeftOrRight False
+    growLeftOrRight True
 
 
 wordWrapStyles =

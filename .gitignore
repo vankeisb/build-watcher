@@ -3,3 +3,4 @@ dist
 elm-stuff
 *.log
 release-builds
+.idea

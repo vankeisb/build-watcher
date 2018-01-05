@@ -211,12 +211,14 @@ initialModel flags =
 type alias Preferences =
     { enableNotifications : Bool
     , pollingInterval : Int
+    , externalTool : String
     }
 
 initialPreferences : Preferences
 initialPreferences =
     { enableNotifications = True
     , pollingInterval = 30
+    , externalTool = ""
     }
 
 
@@ -266,15 +268,25 @@ persistedDataDecoder =
 
 preferencesDecoder : Decoder Preferences
 preferencesDecoder =
-    map2 Preferences
-        (field "enableNotifications" bool)
-        (field "pollingInterval" int)
+    map3 Preferences
+        ( oneOf
+            [ field "enableNotifications" bool
+            , succeed True
+            ]
+        )
+        ( oneOf
+            [ field "pollingInterval" int
+            , succeed 30
+            ]
+        )
+        ( stringOrEmpty "externalTool" )
 
 
 encodePreferences : Preferences -> Value
 encodePreferences v =
     JE.object
         [ ( "enableNotifications", JE.bool v.enableNotifications )
+        , ( "externalTool", JE.string v.externalTool )
         ]
 
 
@@ -355,15 +367,12 @@ type alias TagsListItem =
     }
 
 
-computeTagsDataIfNeeded : Model -> Model
-computeTagsDataIfNeeded model =
-    if model.layoutTab == 1 then
-        { model
-            | tagsData =
-                computeTagListItems model.builds
-        }
-    else
-        model
+computeTagsData : Model -> Model
+computeTagsData model =
+    { model
+        | tagsData =
+            computeTagListItems model.builds
+    }
 
 
 computeTagListItems : List Build -> List TagsListItem

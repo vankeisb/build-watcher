@@ -43,6 +43,24 @@ type alias DesktopNotif =
 
 port desktopNotification : DesktopNotif -> Cmd m
 
+type alias ExternalToolData =
+    { externalTool : String
+    , builds : List ExternalBuild
+    , tags : List ExternalTag
+    }
+
+type alias ExternalBuild =
+    { name : String
+    , status : String
+    }
+
+type alias ExternalTag =
+    { name : String
+    , status : String
+    }
+
+port invokeExternalTool : ExternalToolData -> Cmd m
+
 port quit : () -> Cmd m
 
 port closeWindow : () -> Cmd m
