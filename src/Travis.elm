@@ -66,7 +66,6 @@ resultsDecoder data =
                     data.serverUrl
                     ++ "/"
                     ++ data.repository
-                        |> Debug.log "buildUrl"
                 , status =
                     parseTravisState branchResult.lastBuild.state
                 , name =
@@ -143,18 +142,24 @@ fetch d =
                 , timeout = Nothing
                 , withCredentials = False
                 }
+
+        fetchWithToken t =
+            toTask (createRequest t)
+                |> Task.map (\br -> (br, d))
     in
         case d.travisToken of
             Just token ->
-                toTask (createRequest token)
-                    |> Task.map (\br -> (br, d))
+                fetchWithToken token
             Nothing ->
-                getToken d
-                    |> Task.andThen (\token ->
-                        createRequest token
-                            |> toTask
-                            |> Task.map (\br -> (br, { d | travisToken = Just token }))
-                    )
+                if String.isEmpty d.token then
+                    fetchWithToken d.token
+                else
+                    getToken d
+                        |> Task.andThen (\token ->
+                            createRequest token
+                                |> toTask
+                                |> Task.map (\br -> (br, { d | travisToken = Just token }))
+                        )
 
 
 travisDataDecoder : Decoder TravisData

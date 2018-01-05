@@ -31,6 +31,7 @@ type BVMsg
     | BVPrefsClicked
     | BVPrefsToggleNotif
     | BVPrefsPollingChanged String
+    | BVPrefsExternalToolChanged String
     | BVNowReceived Time
     | BVBuildClicked Build
     | BVCloseClicked

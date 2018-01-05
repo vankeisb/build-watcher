@@ -12,6 +12,9 @@ const fs = require('fs');
 const packageJson = require('./package.json');
 const appName = packageJson.name;
 
+const { exec } = require('child_process');
+
+
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow
@@ -163,6 +166,26 @@ app.on('ready', () => {
             mainWindow.hide();
         } else if (k === 'quit') {
             app.quit();
+        } else if (k === 'invoke-external-tool') {
+            console.log("YALLA");
+            const d = arg.data;
+            const path = d.externalTool;
+            console.log("path", path);
+            const json = JSON.stringify(d);
+            exec(path,
+                {
+                    env: {
+                        "BUILD-WATCHER-DATA": json
+                    }
+                },
+                (err, stdout, stderr) => {
+                if (err) {
+                    console.log("err", err);
+                } else {
+                    console.log("all good");
+                    console.log(stdout);
+                }
+            });
         }
     });
 

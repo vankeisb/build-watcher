@@ -57,6 +57,7 @@ view model =
                 [ Layout.title
                     [ css "align-items" "center"
                     , css "display" "flex"
+                    , css "margin-left" "48px"
                     , css "flex-grow" "1"
                     , css "justify-content" "center"
                     , css "-webkit-app-region" "drag"
@@ -180,17 +181,20 @@ viewDrawer model =
     let
         navItem icon label click openDialog =
             Layout.link
-                [ Options.when (not openDialog)
-                    <| Options.onClick (Layout.toggleDrawer Mdl)
+                [ Options.onClick <| BuildsViewMsg click
+                -- , Options.when (not openDialog)
+                --     <| Options.onClick (Layout.toggleDrawer Mdl)
                 , Options.when openDialog
                     <| Dialog.openOn "click"
                 ]
-                [ span
-                    [ Html.Events.onClick <|
+                [ Options.div
+                    [ css "display" "flex"
+                    , css "align-items" "center"
+                    , Options.onClick <|
                         BuildsViewMsg click
                     ]
                     [ i icon
-                    , text label
+                    , div [] [ text label ]
                     ]
                 ]
     in
@@ -919,46 +923,64 @@ aboutDialog model =
 
 preferencesDialog : Model -> Html Msg
 preferencesDialog model =
-    Dialog.view
-        []
-        [ Dialog.title [] [ text "Preferences" ]
-        , Dialog.content []
-            [ growLeft
-                ( label
-                    []
-                    [ text "Enable notifications"
-                    ]
-                )
-                ( Toggles.switch Mdl [9, 1] model.mdl
-                    [ Options.onToggle <| BuildsViewMsg BVPrefsToggleNotif
-                    , Toggles.ripple
-                    , Toggles.value model.preferences.enableNotifications
-                    ]
-                    []
-                )
-            , Options.div
+    let
+        vSpacer =
+            Options.div
                 [ css "height" "18px"
                 ]
                 []
-            , Textfield.render Mdl [9, 2] model.mdl
-                [ Textfield.label "Polling interval (seconds)"
-                , Textfield.floatingLabel
-                , Textfield.text_
-                , Textfield.value
-                    <| toString model.preferences.pollingInterval
-                , Options.onInput
-                    (\s -> BuildsViewMsg <| BVPrefsPollingChanged s)
+    in
+        Dialog.view
+            []
+            [ Dialog.title [] [ text "Preferences" ]
+            , Dialog.content []
+                [ growLeft
+                    ( label
+                        []
+                        [ text "Enable notifications"
+                        ]
+                    )
+                    ( Toggles.switch Mdl [9, 1] model.mdl
+                        [ Options.onToggle <| BuildsViewMsg BVPrefsToggleNotif
+                        , Toggles.ripple
+                        , Toggles.value model.preferences.enableNotifications
+                        ]
+                        []
+                    )
+                , vSpacer
+                , Textfield.render Mdl [9, 2] model.mdl
+                    [ Textfield.label "Polling interval (seconds)"
+                    , Textfield.floatingLabel
+                    , Textfield.text_
+                    , Textfield.value
+                        <| toString model.preferences.pollingInterval
+                    , Options.onInput
+                        (\s -> BuildsViewMsg <| BVPrefsPollingChanged s)
+                    ]
+                    []
+                , vSpacer
+                , withHelp
+                    ( "External tool is invoked on build status change."
+                        ++ " Builds and tags statuses are passed as JSON."
+                    ) <|
+                    Textfield.render Mdl [9, 3] model.mdl
+                        [ Textfield.label "Path to external tool"
+                        , Textfield.floatingLabel
+                        , Textfield.text_
+                        , Textfield.value model.preferences.externalTool
+                        , Options.onInput
+                            (\s -> BuildsViewMsg <| BVPrefsExternalToolChanged s)
+                        ]
+                        []
                 ]
-                []
+            , Dialog.actions []
+                [ Button.render Mdl
+                    [ 9, 3 ]
+                    model.mdl
+                    [ Dialog.closeOn "click" ]
+                    [ text "Done" ]
+                ]
             ]
-        , Dialog.actions []
-            [ Button.render Mdl
-                [ 9, 3 ]
-                model.mdl
-                [ Dialog.closeOn "click" ]
-                [ text "Done" ]
-            ]
-        ]
 
 
 fetchErrorDialog : Model -> Build -> Html Msg
