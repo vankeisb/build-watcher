@@ -505,21 +505,6 @@ updateAddBuildView abvm model =
                     }
 
 
--- toggleDrawer : Model -> (Model, Cmd Msg)
--- toggleDrawer model =
---     let
---         (m,c) =
---             Layout.update Layout.ToggleDrawer model.mdl.layout
---         mdl =
---             model.mdl
---         newMdl =
---             { mdl
---                 | layout = m
---             } |> Debug.log "newMdl"
---     in
---         ( { model | mdl = newMdl }, Cmd.none )
-
-
 updateBuildsView : BVMsg -> Model -> (Model, Cmd Msg)
 updateBuildsView bvm model =
     case bvm of
