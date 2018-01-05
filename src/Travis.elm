@@ -66,7 +66,6 @@ resultsDecoder data =
                     data.serverUrl
                     ++ "/"
                     ++ data.repository
-                        |> Debug.log "buildUrl"
                 , status =
                     parseTravisState branchResult.lastBuild.state
                 , name =

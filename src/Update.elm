@@ -13,7 +13,6 @@ import Ports
 import Task exposing (Task)
 import Time exposing (Time)
 import Travis
-import Material.Layout as Layout
 
 
 init : Flags -> (Model, Cmd Msg)
@@ -103,7 +102,7 @@ update msg model =
                                     , counter = List.length builds
                                 }
                                 |> applyFilter
-                                |> computeTagsDataIfNeeded
+                                |> computeTagsData
                             , fetchNow
                             )
                     Err e ->
@@ -173,15 +172,57 @@ update msg model =
 
                 newBuilds =
                     List.map mapper model.builds
-            in
-                (
+
+                newModel =
                     { model
                         | builds = newBuilds
                     }
-                        |> computeTagsDataIfNeeded
-                , newBuilds
-                    |> List.map (desktopNotifIfBuildStateChanged model)
-                    |> Cmd.batch
+                        |> computeTagsData
+
+                maybeNotifs =
+                    List.map desktopNotifIfBuildStateChanged newBuilds
+
+                notifCmd =
+                    if model.preferences.enableNotifications then
+                        maybeNotifs
+                            |> List.map (Maybe.withDefault Cmd.none)
+                            |> Cmd.batch
+                    else
+                        Cmd.none
+
+                -- fire up external tool if we have at least one notification
+                -- or if it's the initial fetch
+
+                isInitialFetch =
+                    model.builds
+                        |> List.map (\b ->
+                            if getDefId b.def == getDefId def then
+                                b.previousStatus == Unknown
+                            else
+                                False
+                        )
+                        |> List.filter (\b -> b)
+                        |> List.isEmpty
+                        |> not
+
+                hasOneNotif =
+                    maybeNotifs
+                        |> List.filter (\n -> n /= Nothing)
+                        |> List.isEmpty
+                        |> not
+
+                externalToolCmd =
+                    if isInitialFetch || hasOneNotif then
+                        invokeExternalTool newModel
+                    else
+                        Cmd.none
+
+            in
+                ( newModel
+                , Cmd.batch
+                    [ notifCmd
+                    , externalToolCmd
+                    ]
                 )
 
         OpenUrl u ->
@@ -207,7 +248,7 @@ update msg model =
                         { model
                             | layoutTab = i
                         }
-                            |> computeTagsDataIfNeeded
+                            |> computeTagsData
                     , Cmd.none
                     )
 
@@ -507,7 +548,7 @@ updateAddBuildView abvm model =
 
 updateBuildsView : BVMsg -> Model -> (Model, Cmd Msg)
 updateBuildsView bvm model =
-    case bvm of
+    case Debug.log "bvm" bvm of
         BVNowReceived now ->
             handleTick model now
 
@@ -605,6 +646,15 @@ updateBuildsView bvm model =
                         | pollingInterval =
                             String.toInt s
                                 |> Result.withDefault 0
+                    }
+                )
+
+        BVPrefsExternalToolChanged s ->
+            updatePrefsAndSave
+                model
+                (\p ->
+                    { p
+                        | externalTool = s
                     }
                 )
 
@@ -809,7 +859,7 @@ updateBuildsAndSave model newBuilds toastText =
                 | builds = newBuilds
                 , view = BuildListView
             }
-                |> computeTagsDataIfNeeded
+                |> computeTagsData
         , Cmd.batch
             [ save newPersistedData
             , c
@@ -868,35 +918,75 @@ mapTravisBuildData model f =
         }
 
 
-desktopNotifIfBuildStateChanged : Model -> Build -> Cmd m
-desktopNotifIfBuildStateChanged model build =
-    if model.preferences.enableNotifications then
-        case build.result of
-            Just result ->
-                if build.previousStatus /= Unknown
-                    && build.previousStatus /= result.status then
-                    { title = result.name
-                    , body =
-                        case result.status of
-                            Green -> "Build is now green"
-                            Red -> "Build has failed"
-                            _ -> ""
-                    , isGreen =
-                        result.status == Green
-                    }
-                    |> Ports.desktopNotification
-                else
-                    Cmd.none
-            Nothing ->
-                Cmd.none
-    else
-        Cmd.none
+
+desktopNotifIfBuildStateChanged :  Build -> Maybe (Cmd m)
+desktopNotifIfBuildStateChanged build =
+    case build.result of
+        Just result ->
+            if build.previousStatus /= Unknown
+                && build.previousStatus /= result.status then
+                { title = result.name
+                , body =
+                    case result.status of
+                        Green -> "Build is now green"
+                        Red -> "Build has failed"
+                        _ -> ""
+                , isGreen =
+                    result.status == Green
+                }
+                |> Ports.desktopNotification
+                |> Just
+            else
+                Nothing
+        Nothing ->
+            Nothing
 
 
 save : PersistedData -> Cmd m
 save p =
     encodePersistedData p
         |> Ports.saveData
+
+
+invokeExternalTool : Model -> Cmd Msg
+invokeExternalTool model =
+    if String.isEmpty model.preferences.externalTool then
+        Cmd.none
+    else
+        let
+            statusToString s =
+                toString s
+
+            toExternalBuild build =
+                { name = getBuildName build.def
+                , status =
+                    case build.result of
+                        Just result ->
+                            statusToString result.status
+                        Nothing ->
+                            statusToString build.previousStatus
+                }
+
+            toExternalTag tag =
+                { name = tag.tag
+                , status =
+                    if tag.nbRed > 0 then
+                        statusToString Red
+                    else if tag.nbGreen > 0 then
+                        statusToString Green
+                    else
+                        statusToString Unknown
+                }
+
+            externalToolData =
+                { externalTool = model.preferences.externalTool
+                , builds =
+                    List.map toExternalBuild model.builds
+                , tags =
+                    List.map toExternalTag model.tagsData
+                }
+        in
+            Ports.invokeExternalTool externalToolData
 
 
 subscriptions : Model -> Sub Msg
