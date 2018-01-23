@@ -152,7 +152,7 @@ type View
 type DialogKind
     = AboutDialog
     | PreferencesDialog
-    | FetchErrorDialog Build
+    | FetchErrorDialog Build Http.Error
     | ShareBuildDialog (List Build)
     | TagsDialog BuildId String
     | TagDetailsDialog TagDetailsData

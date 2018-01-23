@@ -667,7 +667,7 @@ updateBuildsView bvm model =
                 Nothing ->
                     case b.fetchError of
                         Just err ->
-                            showDialog model <| FetchErrorDialog b
+                            showDialog model <| FetchErrorDialog b err
                         Nothing ->
                             (model, Cmd.none)
 

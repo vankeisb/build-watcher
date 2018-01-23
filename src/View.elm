@@ -6,9 +6,12 @@ import Common exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onWithOptions)
+import Http
 import Json.Decode as Json
 import Json.Encode
 import Material.Button as Button
+import Material.Card as Card
+import Material.Chip as Chip
 import Material.Color as Color
 import Material.Dialog as Dialog
 import Material.Elevation as Elevation
@@ -28,8 +31,6 @@ import Messages exposing (..)
 import Model exposing (..)
 import Style exposing (..)
 import Travis
-import Material.Chip as Chip
-import Material.Card as Card
 
 
 i : String -> Html m
@@ -368,6 +369,11 @@ viewDefAndResult model index b =
 
         onBuildClicked =
             Html.Events.onClick (BuildsViewMsg (BVBuildClicked b))
+
+        openDialogOnClick =
+            b.fetchError
+                |> Maybe.map (\fe -> Dialog.openOn "click")
+                |> Maybe.withDefault Options.nop
     in
         div
             [ style <|
@@ -399,14 +405,13 @@ viewDefAndResult model index b =
                     , Icon.size48
                     ]
                 ]
-            , div
-                [ style <|
-                    [ displayFlex
-                    , flexColumn
-                    , flexGrow
-                    , ("overflow", "hidden")
-                    ]
-                , onBuildClicked
+            , Options.div
+                [ css "display" "flex"
+                , css "flex-direction" "column"
+                , css "flex-grow" "1"
+                , css" overflow" "hidden"
+                , openDialogOnClick
+                , Options.attribute onBuildClicked
                 ]
                 [ Options.div
                     (
@@ -821,7 +826,7 @@ travisRows model =
             model.addBuildData.travisErrors
     in
         [ formRow <|
-            withHelp "URL of the Travis server (e.g. https://travis.org)" <|
+            withHelp "URL of the Travis server (e.g. https://travis-ci.org)" <|
             Textfield.render Mdl [8, 1] model.mdl
                 ( tfOpts
                     [ Textfield.label "Server URL"
@@ -873,7 +878,7 @@ dialog model =
     case model.dialogKind of
         AboutDialog -> aboutDialog model
         PreferencesDialog -> preferencesDialog model
-        FetchErrorDialog build -> fetchErrorDialog model build
+        FetchErrorDialog build error -> fetchErrorDialog model build error
         ShareBuildDialog builds -> shareBuildDialog model builds
         TagsDialog buildId tagsText -> tagsDialog model buildId tagsText
         TagDetailsDialog details -> tagDetailsDialog model details
@@ -983,34 +988,30 @@ preferencesDialog model =
             ]
 
 
-fetchErrorDialog : Model -> Build -> Html Msg
-fetchErrorDialog model build =
-    case build.fetchError of
-        Just error ->
-            Dialog.view
-                []
-                [ Dialog.title [] [ text "Error" ]
-                , Dialog.content []
-                    [ p []
-                        [ text
-                            <| "An error occured while fetching build results for "
-                            ++ getBuildName build.def
-                        ]
-                    , code
-                        []
-                        [ text <| toString error
-                        ]
-                    ]
-                , Dialog.actions []
-                    [ Button.render Mdl
-                        [ 18 ]
-                        model.mdl
-                        [ Dialog.closeOn "click" ]
-                        [ text "Got it" ]
-                    ]
+fetchErrorDialog : Model -> Build -> Http.Error -> Html Msg
+fetchErrorDialog model build error =
+    Dialog.view
+        []
+        [ Dialog.title [] [ text "Error" ]
+        , Dialog.content []
+            [ p []
+                [ text
+                    <| "An error occured while fetching build results for "
+                    ++ getBuildName build.def
                 ]
-        Nothing ->
-            text ""
+            , code
+                []
+                [ text <| toString error
+                ]
+            ]
+        , Dialog.actions []
+            [ Button.render Mdl
+                [ 18 ]
+                model.mdl
+                [ Dialog.closeOn "click" ]
+                [ text "Got it" ]
+            ]
+        ]
 
 
 shareBuildDialog : Model -> List Build -> Html Msg
