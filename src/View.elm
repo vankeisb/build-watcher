@@ -384,8 +384,7 @@ viewDefAndResult model index b =
                 ] ++
                 (
                     if b.hover then
-                        [ ("background-color", "#EEEEEE")
-                        , ("cursor", "pointer")
+                        [ ("cursor", "pointer")
                         ]
                     else
                         []
