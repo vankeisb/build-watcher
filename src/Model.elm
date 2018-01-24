@@ -2,6 +2,7 @@ module Model exposing (..)
 
 import Bamboo exposing (BambooData)
 import Travis exposing (TravisData)
+import Jenkins exposing (Data)
 import Common exposing (..)
 import Time exposing (Time)
 import Http exposing (Error)
@@ -18,10 +19,14 @@ type alias Flags =
     , dataFileName : String
     }
 
-type alias Tags = List String
+
+type alias Tags =
+    List String
 
 
-type alias BuildId = Int
+type alias BuildId =
+    Int
+
 
 type alias CommonBuildData =
     { id : BuildId
@@ -39,13 +44,20 @@ defaultCommonBuildData id =
 type BuildDef
     = BambooDef CommonBuildData BambooData
     | TravisDef CommonBuildData TravisData
+    | JenkinsDef CommonBuildData Jenkins.Data
 
 
 getCommonBuildData : BuildDef -> CommonBuildData
 getCommonBuildData buildDef =
     case buildDef of
-        BambooDef cd _ -> cd
-        TravisDef cd _ -> cd
+        BambooDef cd _ ->
+            cd
+
+        TravisDef cd _ ->
+            cd
+
+        JenkinsDef cd _ ->
+            cd
 
 
 type alias Build =
@@ -76,10 +88,12 @@ defaultBuild buildDef =
 type alias AddBuildData =
     { bamboo : Bamboo.BambooData
     , travis : Travis.TravisData
+    , jenkins : Jenkins.Data
     , tab : Int
     , editing : Maybe Build
     , bambooErrors : Bamboo.BambooValidationErrors
     , travisErrors : Travis.TravisValidationErrors
+    , jenkinsErrors : Jenkins.ValidationErrors
     , importText : String
     , importError : Maybe String
     }
@@ -100,6 +114,10 @@ initialAddBuildData =
         , branch = ""
         , travisToken = Nothing
         }
+    , jenkins =
+        { serverUrl = ""
+        , job = ""
+        }
     , tab = 0
     , editing = Nothing
     , bambooErrors =
@@ -110,6 +128,10 @@ initialAddBuildData =
         { serverUrl = Nothing
         , repository = Nothing
         , branch = Nothing
+        }
+    , jenkinsErrors =
+        { serverUrl = Nothing
+        , job = Nothing
         }
     , importText = ""
     , importError = Nothing
@@ -127,20 +149,28 @@ editBuildData build =
                 case build.def of
                     BambooDef i d ->
                         d
+
                     _ ->
                         bd.bamboo
             , travis =
                 case build.def of
                     TravisDef i d ->
                         d
+
                     _ ->
                         bd.travis
             , editing =
                 Just build
             , tab =
                 case build.def of
-                    BambooDef _ _ -> 0
-                    TravisDef _ _ -> 1
+                    BambooDef _ _ ->
+                        0
+
+                    TravisDef _ _ ->
+                        1
+
+                    JenkinsDef _ _ ->
+                        2
         }
 
 
@@ -214,6 +244,7 @@ type alias Preferences =
     , externalTool : String
     }
 
+
 initialPreferences : Preferences
 initialPreferences =
     { enableNotifications = True
@@ -225,6 +256,7 @@ initialPreferences =
 type PersistedBuild
     = PersistedBambooBuild Tags Bamboo.BambooData
     | PersistedTravisBuild Tags Travis.TravisData
+    | PersistedJenkinsBuild Tags Jenkins.Data
 
 
 type alias PersistedData =
@@ -236,19 +268,26 @@ type alias PersistedData =
 persistedBuildDecoder : Decoder PersistedBuild
 persistedBuildDecoder =
     (field "kind" string)
-        |> andThen (\k ->
-            ( oneOf
-                [ field "tags" (list string)
-                , succeed []
-                ]
-            )
-                |> andThen (\tags ->
-                    case k of
-                        "bamboo" -> map (PersistedBambooBuild tags) Bamboo.bambooDataDecoder
-                        "travis" -> map (PersistedTravisBuild tags) Travis.travisDataDecoder
-                        _ -> fail <| "unsupported kind " ++ k
+        |> andThen
+            (\k ->
+                (oneOf
+                    [ field "tags" (list string)
+                    , succeed []
+                    ]
                 )
-        )
+                    |> andThen
+                        (\tags ->
+                            case k of
+                                "bamboo" ->
+                                    map (PersistedBambooBuild tags) Bamboo.bambooDataDecoder
+
+                                "travis" ->
+                                    map (PersistedTravisBuild tags) Travis.travisDataDecoder
+
+                                _ ->
+                                    fail <| "unsupported kind " ++ k
+                        )
+            )
 
 
 persistedDataDecoder : Decoder PersistedData
@@ -256,8 +295,9 @@ persistedDataDecoder =
     let
         builds =
             (field "builds" (list persistedBuildDecoder))
+
         preferences =
-            ( oneOf
+            (oneOf
                 [ (field "preferences" preferencesDecoder)
                 , succeed initialPreferences
                 ]
@@ -269,17 +309,17 @@ persistedDataDecoder =
 preferencesDecoder : Decoder Preferences
 preferencesDecoder =
     map3 Preferences
-        ( oneOf
+        (oneOf
             [ field "enableNotifications" bool
             , succeed True
             ]
         )
-        ( oneOf
+        (oneOf
             [ field "pollingInterval" int
             , succeed 30
             ]
         )
-        ( stringOrEmpty "externalTool" )
+        (stringOrEmpty "externalTool")
 
 
 encodePreferences : Preferences -> Value
@@ -290,15 +330,14 @@ encodePreferences v =
         ]
 
 
-encodeTags : Tags -> (String, Value)
+encodeTags : Tags -> ( String, Value )
 encodeTags tags =
-    ("tags", JE.list (List.map JE.string tags))
+    ( "tags", JE.list (List.map JE.string tags) )
 
 
 encodePersistedData : PersistedData -> Value
 encodePersistedData v =
     let
-
         pbToValue pb =
             JE.object <|
                 case pb of
@@ -308,6 +347,10 @@ encodePersistedData v =
 
                     PersistedTravisBuild tags d ->
                         (Travis.encodeTravisData True d)
+                            ++ [ encodeTags tags ]
+
+                    PersistedJenkinsBuild tags d ->
+                        (Jenkins.encodeData d)
                             ++ [ encodeTags tags ]
 
         builds =
@@ -326,15 +369,25 @@ getBuildName buildDef =
     case buildDef of
         BambooDef _ d ->
             d.plan
+
         TravisDef _ d ->
             d.repository ++ "/" ++ d.branch
+
+        JenkinsDef _ d ->
+            d.job
 
 
 getDefId : BuildDef -> Int
 getDefId buildDef =
     case buildDef of
-        BambooDef cd _ -> cd.id
-        TravisDef cd _ -> cd.id
+        BambooDef cd _ ->
+            cd.id
+
+        TravisDef cd _ ->
+            cd.id
+
+        JenkinsDef cd _ ->
+            cd.id
 
 
 getBuildById : Model -> Int -> Maybe Build
@@ -348,13 +401,18 @@ createPersistedData : Preferences -> List Build -> PersistedData
 createPersistedData prefs builds =
     { builds =
         builds
-            |> List.map (\b ->
-                case b.def of
-                    BambooDef cd d ->
-                        PersistedBambooBuild cd.tags d
-                    TravisDef cd d ->
-                        PersistedTravisBuild cd.tags d
-            )
+            |> List.map
+                (\b ->
+                    case b.def of
+                        BambooDef cd d ->
+                            PersistedBambooBuild cd.tags d
+
+                        TravisDef cd d ->
+                            PersistedTravisBuild cd.tags d
+
+                        JenkinsDef cd d ->
+                            PersistedJenkinsBuild cd.tags d
+                )
     , preferences = prefs
     }
 
@@ -384,13 +442,15 @@ computeTagListItems builds =
                 b :: bs ->
                     tagsAndBuilds
                         |> List.append
-                            ( getCommonBuildData b.def
+                            (getCommonBuildData b.def
                                 |> .tags
-                                |> List.map (\tag ->
-                                    (tag, b)
-                                )
+                                |> List.map
+                                    (\tag ->
+                                        ( tag, b )
+                                    )
                             )
                         |> zipTagAndBuild bs
+
                 _ ->
                     tagsAndBuilds
 
@@ -401,8 +461,10 @@ computeTagListItems builds =
                     let
                         tag =
                             Tuple.first tab
+
                         build =
                             Tuple.second tab
+
                         tli =
                             Dict.get tag d
                                 |> Maybe.withDefault
@@ -411,6 +473,7 @@ computeTagListItems builds =
                                     , nbRed = 0
                                     , raised = False
                                     }
+
                         isGreen =
                             build.result
                                 |> Maybe.map (\r -> r.status == Green)
@@ -418,25 +481,35 @@ computeTagListItems builds =
 
                         newTli =
                             { tli
-                                | nbGreen = tli.nbGreen +
-                                    if isGreen then 1 else 0
-                                , nbRed = tli.nbRed +
-                                    ( if isGreen then 0 else 1 )
+                                | nbGreen =
+                                    tli.nbGreen
+                                        + if isGreen then
+                                            1
+                                          else
+                                            0
+                                , nbRed =
+                                    tli.nbRed
+                                        + (if isGreen then
+                                            0
+                                           else
+                                            1
+                                          )
                             }
 
                         newDict =
                             Dict.insert tag newTli d
                     in
                         createDict tabs newDict
+
                 _ ->
                     d
     in
         createDict
-            ( zipTagAndBuild builds [] )
+            (zipTagAndBuild builds [])
             Dict.empty
-                |> Dict.toList
-                |> List.map Tuple.second
-                |> List.sortBy .tag
+            |> Dict.toList
+            |> List.map Tuple.second
+            |> List.sortBy .tag
 
 
 getLastKnownBuildStatus : Build -> Status
@@ -451,30 +524,33 @@ computeTagDetailsData model tag =
     let
         d =
             model.builds
-                |> List.filter (\build ->
-                    getCommonBuildData build.def
-                        |> .tags
-                        |> List.filter (\t -> t == tag)
-                        |> List.isEmpty
-                        |> not
-                )
-                |> List.foldl (\build details ->
-                    case getLastKnownBuildStatus build of
-                        Green ->
-                            { details
-                                | greenBuilds =
-                                    build :: details.greenBuilds
-                            }
-                        _ ->
-                            { details
-                                | redBuilds =
-                                    build :: details.redBuilds
-                            }
-                )
-                { tag = tag
-                , greenBuilds = []
-                , redBuilds = []
-                }
+                |> List.filter
+                    (\build ->
+                        getCommonBuildData build.def
+                            |> .tags
+                            |> List.filter (\t -> t == tag)
+                            |> List.isEmpty
+                            |> not
+                    )
+                |> List.foldl
+                    (\build details ->
+                        case getLastKnownBuildStatus build of
+                            Green ->
+                                { details
+                                    | greenBuilds =
+                                        build :: details.greenBuilds
+                                }
+
+                            _ ->
+                                { details
+                                    | redBuilds =
+                                        build :: details.redBuilds
+                                }
+                    )
+                    { tag = tag
+                    , greenBuilds = []
+                    , redBuilds = []
+                    }
 
         sortBuilds builds =
             builds |> List.sortBy (\b -> getBuildName b.def)

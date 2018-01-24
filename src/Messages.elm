@@ -8,6 +8,7 @@ import Time exposing (Time)
 import Ports exposing (..)
 import Material.Snackbar as Snackbar
 
+
 type ABVMsg
     = ABCancelClicked
     | ABOkClicked
@@ -21,6 +22,8 @@ type ABVMsg
     | ABTravisRepoChanged String
     | ABTravisBranchChanged String
     | ABImportTextChanged String
+    | ABJenkinsServerUrlChanged String
+    | ABJenkinsJobChanged String
 
 
 type BVMsg
@@ -50,11 +53,12 @@ type BVMsg
     | BVBuildHover Bool Build
     | BVTagClicked String
 
+
 type Msg
     = BuildsViewMsg BVMsg
     | AddBuildViewMsg ABVMsg
     | Tick Time
-    | FetchResult BuildDef (Result Http.Error (BuildResult, BuildDef))
+    | FetchResult BuildDef (Result Http.Error ( BuildResult, BuildDef ))
     | Mdl (Material.Msg Msg)
     | OnDataLoadError DataLoadError
     | OnDataLoadFileNotFound DataLoadFileNotFound
