@@ -35,4 +35,11 @@ The app is written in Elm with ports/JS for the Electron APIs.
     npm run build
     npm run start/debug
 
+Useful environment vars when developing :
+
+    ELECTRON_ENABLE_LOGGING=1
+    BW_DEV=true
+
+## Executables
+
 `release-*` npm scripts are provided in `package.json` for releasing the executable.

@@ -21,13 +21,13 @@ let mainWindow
 
 let willQuitApp = false;
 
-const isDevEnv = false;
+const isDevEnv = !!process.env.BW_DEV;
 
 function createWindow () {
   // Create the browser window.
   mainWindow = new BrowserWindow({
       width: 400,
-      minWidth: 400,
+      minWidth: isDevEnv ? 800 : 400,
       height: 800,
       minHeight: 400,
       frame: false
@@ -76,7 +76,11 @@ let tray = null;
 app.on('ready', () => {
     // hide dock icon on osx
     app.dock && app.dock.hide();
-    const iconName = process.platform === 'win32' ? 'windows-icon.png' : 'iconTemplate.png'
+    const icons = {
+        'linux' : 'iconTemplateWhite.png',
+        'win32' : 'windows-icon.png'
+    }
+    const iconName = icons[process.platform] || 'iconTemplate.png'
     const iconPath = path.join(__dirname, 'assets', 'tray-icon', iconName)
     tray = new Tray(iconPath)
     const contextMenu = Menu.buildFromTemplate([
