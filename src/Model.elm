@@ -284,6 +284,9 @@ persistedBuildDecoder =
                                 "travis" ->
                                     map (PersistedTravisBuild tags) Travis.travisDataDecoder
 
+                                "jenkins" ->
+                                    map (PersistedJenkinsBuild tags) Jenkins.dataDecoder
+
                                 _ ->
                                     fail <| "unsupported kind " ++ k
                         )

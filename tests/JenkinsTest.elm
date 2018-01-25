@@ -61,6 +61,14 @@ suite =
                             , ( "serverUrl", JE.string "my.url" )
                             , ( "job", JE.string "my-job" )
                             ]
+            , test "decode" <|
+                \_ ->
+                    let
+                        encoded =
+                            (JE.object << encodeData) data1
+                    in
+                        JD.decodeValue dataDecoder encoded
+                            |> Expect.equal (Ok data1)
             , test "build url" <|
                 \_ ->
                     buildUrl data1

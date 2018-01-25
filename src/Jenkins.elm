@@ -40,6 +40,13 @@ encodeData v =
     ]
 
 
+dataDecoder : Decoder Data
+dataDecoder =
+    map2 Data
+        (field "serverUrl" string)
+        (field "job" string)
+
+
 buildUrl : Data -> String
 buildUrl data =
     data.serverUrl
