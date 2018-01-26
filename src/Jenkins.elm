@@ -92,13 +92,13 @@ decoder data =
 responseDecoder : Decoder Response
 responseDecoder =
     JD.map3 Response
-        (field "result" string)
+        (field "result" (nullable string))
         (field "url" string)
         (field "fullDisplayName" string)
 
 
 type alias Response =
-    { result : String
+    { result : Maybe String
     , url : String
     , fullDisplayName : String
     }
@@ -114,17 +114,20 @@ responseToBuildResult data response =
         }
 
 
-toStatus : String -> Status
+toStatus : Maybe String -> Status
 toStatus result =
     case result of
-        "SUCCESS" ->
+        Just "SUCCESS" ->
             Green
 
-        "FAILURE" ->
+        Just "FAILURE" ->
             Red
 
-        "UNSTABLE" ->
+        Just "UNSTABLE" ->
             Red
+
+        Nothing ->
+            Building
 
         _ ->
             Unknown

@@ -15,11 +15,23 @@ data1 =
     }
 
 
-response1 : String
-response1 =
+responseGreen : String
+responseGreen =
     """
 {
    "result" : "SUCCESS",
+   "_class" : "hudson.maven.MavenModuleSetBuild",
+   "url" : "http://my-url/job/my-job/13/",
+   "fullDisplayName" : "my-job #13"
+}
+"""
+
+
+responseBuilding : String
+responseBuilding =
+    """
+{
+   "result" : null,
    "_class" : "hudson.maven.MavenModuleSetBuild",
    "url" : "http://my-url/job/my-job/13/",
    "fullDisplayName" : "my-job #13"
@@ -76,9 +88,9 @@ suite =
                             "my.url/job/my-job/lastBuild/api/json?tree=result,url,fullDisplayName"
             ]
         , describe "Fetch"
-            [ test "decode" <|
+            [ test "decode green" <|
                 \_ ->
-                    JD.decodeString (decoder data1) response1
+                    JD.decodeString (decoder data1) responseGreen
                         |> Expect.equal
                             (Result.Ok
                                 { url = "http://my-url/job/my-job/13/"
@@ -86,18 +98,30 @@ suite =
                                 , name = "my-job #13"
                                 }
                             )
+            , test "decode building" <|
+                \_ ->
+                    JD.decodeString (decoder data1) responseBuilding
+                        |> Expect.equal
+                            (Result.Ok
+                                { url = "http://my-url/job/my-job/13/"
+                                , status = Common.Building
+                                , name = "my-job #13"
+                                }
+                            )
             , test "status" <|
                 \_ ->
-                    [ "SUCCESS"
-                    , "FAILURE"
-                    , "UNSTABLE"
-                    , "other"
+                    [ Just "SUCCESS"
+                    , Just "FAILURE"
+                    , Just "UNSTABLE"
+                    , Nothing
+                    , Just "other"
                     ]
                         |> List.map toStatus
                         |> Expect.equal
                             [ Common.Green
                             , Common.Red
                             , Common.Red
+                            , Common.Building
                             , Common.Unknown
                             ]
             ]
