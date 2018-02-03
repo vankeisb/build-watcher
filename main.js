@@ -171,15 +171,15 @@ app.on('ready', () => {
         } else if (k === 'quit') {
             app.quit();
         } else if (k === 'invoke-external-tool') {
-            console.log("YALLA");
             const d = arg.data;
             const path = d.externalTool;
-            console.log("path", path);
             const json = JSON.stringify(d);
+            console.log("Invoke external tool :")
+            console.log(json);
             exec(path,
                 {
                     env: {
-                        "BUILD-WATCHER-DATA": json
+                        "BUILD_WATCHER_DATA": json
                     }
                 },
                 (err, stdout, stderr) => {
