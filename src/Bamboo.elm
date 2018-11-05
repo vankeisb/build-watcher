@@ -60,8 +60,19 @@ bambooResponseDecoder =
                     (list
                         (map3 BambooResult
                             (field "buildResultKey" string)
-                            (field "finished" bool)
-                            (field "successful" bool)
+                            (field "lifeCycleState" string
+                                |> map
+                                    (\lcs ->
+                                        lcs == "Finished"
+                                    )
+
+                            )
+                            (field "state" string
+                                |> map
+                                    (\state ->
+                                        state == "Successful"
+                                    )
+                            )
                         )
                     )
                 )
@@ -123,7 +134,7 @@ fetch d =
                 ++ d.plan
                 ++ ".json?"
                 ++ authPart
-                ++ "expand=results[0].result"
+                ++ "max-results=1"
         req =
             request
                 { method = "GET"
