@@ -28,5 +28,7 @@
     "electron-packager": "^10.1.0",
     "elm": "0.18.0"
   },
-  "dependencies": {}
+  "dependencies": {
+    "elm-test": "^0.18.12"
+  }
 }

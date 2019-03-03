@@ -1,0 +1,5 @@
+{
+    "elm.compiler": "/Users/mathieu/Projects/build-watcher/node_modules/.bin/elm",
+    "elm.makeCommand": "/Users/mathieu/Projects/build-watcher/node_modules/.bin/elm-make",
+    "elm.formatCommand": "/usr/local/bin/elm-format"
+}
