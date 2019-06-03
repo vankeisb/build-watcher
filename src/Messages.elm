@@ -20,6 +20,10 @@ type ABVMsg
     | ABTravisTokenChanged String
     | ABTravisRepoChanged String
     | ABTravisBranchChanged String
+    | ABGitlabServerUrlChanged String
+    | ABGitlabTokenChanged String
+    | ABGitlabProjectChanged String
+    | ABGitlabBranchChanged String
     | ABImportTextChanged String
 
 

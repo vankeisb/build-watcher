@@ -3,6 +3,7 @@ module Update exposing (..)
 import Bamboo
 import Common exposing (Status(Green), Status(Red), Status(Unknown), validateRequired)
 import Dom exposing (focus)
+import Gitlab
 import Json.Decode as Json
 import Material
 import Material.Helpers exposing (map1st, map2nd)
@@ -86,6 +87,10 @@ update msg model =
                                                     d
                                             PersistedTravisBuild tags d ->
                                                 TravisDef
+                                                    { id = i, tags = tags }
+                                                    d
+                                            PersistedGitlabBuild tags d ->
+                                                GitlabDef
                                                     { id = i, tags = tags }
                                                     d
                                     )
@@ -276,6 +281,11 @@ fetch build time =
             TravisDef i travisData ->
                 Travis.fetch travisData
                     |> Task.map (\(br, td) -> (br, TravisDef i td))
+            GitlabDef i gitlabData ->
+                Gitlab.fetch gitlabData
+                    |> Task.map (\br  -> (br, GitlabDef i gitlabData))
+        
+ 
         )
         |> Task.attempt (FetchResult build.def)
     )
@@ -374,6 +384,14 @@ updateAddBuildView abvm model =
                             , Nothing
                             )
                         2 ->
+                            (
+                                [ GitlabDef
+                                    (defaultCommonBuildData newCounter)
+                                    (sanitize abd.gitlab)
+                                ]
+                            , Nothing
+                            )
+                        3 ->
                             let
                                 decoded =
                                     abd.importText
@@ -387,6 +405,8 @@ updateAddBuildView abvm model =
                                                         BambooDef { id = i + newCounter, tags = tags } d
                                                     PersistedTravisBuild tags d ->
                                                         TravisDef { id = i + newCounter, tags = tags } d
+                                                    PersistedGitlabBuild tags d ->
+                                                        GitlabDef { id = i + newCounter, tags = tags } d
                                             )
                                         )
                                         |> Result.withDefault []
@@ -530,6 +550,46 @@ updateAddBuildView abvm model =
                         )
                     )
 
+        ABGitlabServerUrlChanged s ->
+            noCmd <|
+                mapGitlabBuildData
+                    model
+                    (\(t, te) ->
+                        ( { t | serverUrl = s }
+                        , { te | serverUrl = validateRequired s }
+                        )
+                    )
+
+        ABGitlabTokenChanged s ->
+            noCmd <|
+                mapGitlabBuildData
+                    model
+                    (\(t, te) ->
+                        ( { t | token = s }
+                        , te
+                        )
+                    )
+
+        ABGitlabProjectChanged s ->
+            noCmd <|
+                mapGitlabBuildData
+                    model
+                    (\(t, te) ->
+                        ( { t | project = s }
+                        , { te | project = validateRequired s }
+                        )
+                    )
+
+        ABGitlabBranchChanged s ->
+            noCmd <|
+                mapGitlabBuildData
+                    model
+                    (\(t, te) ->
+                        ( { t | branch = s }
+                        , { te | branch = validateRequired s }
+                        )
+                    )
+
         ABImportTextChanged s ->
             let
                 abd =
@@ -602,6 +662,7 @@ updateBuildsView bvm model =
                     case build.def of
                         BambooDef cd d -> BambooDef (newCd cd) (Bamboo.copy d)
                         TravisDef cd d -> TravisDef (newCd cd) (Travis.copy d)
+                        GitlabDef cd d -> GitlabDef (newCd cd) (Gitlab.copy d)
 
                 newBuilds =
                     model.builds
@@ -785,6 +846,8 @@ updateTags model build newTags =
                                         BambooDef { cd | tags = newTags } d
                                     TravisDef cd d ->
                                         TravisDef { cd | tags = newTags } d
+                                    GitlabDef cd d ->
+                                        GitlabDef { cd | tags = newTags } d
                         }
                     else
                         b
@@ -914,6 +977,22 @@ mapTravisBuildData model f =
                 { abd
                     | travis = travis
                     , travisErrors = travisErrors
+                }
+        }
+
+mapGitlabBuildData : Model -> ((Gitlab.GitlabData, Gitlab.GitlabValidationErrors) -> (Gitlab.GitlabData, Gitlab.GitlabValidationErrors)) -> Model
+mapGitlabBuildData model f =
+    let
+        abd =
+            model.addBuildData
+        (gitlab, gitlabErrors) =
+            f (abd.gitlab, abd.gitlabErrors)
+    in
+        { model
+            | addBuildData =
+                { abd
+                    | gitlab = gitlab
+                    , gitlabErrors = gitlabErrors
                 }
         }
 

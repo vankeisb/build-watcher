@@ -2,6 +2,7 @@ module Model exposing (..)
 
 import Bamboo exposing (BambooData)
 import Travis exposing (TravisData)
+import Gitlab exposing (GitlabData)
 import Common exposing (..)
 import Time exposing (Time)
 import Http exposing (Error)
@@ -39,6 +40,7 @@ defaultCommonBuildData id =
 type BuildDef
     = BambooDef CommonBuildData BambooData
     | TravisDef CommonBuildData TravisData
+    | GitlabDef CommonBuildData GitlabData
 
 
 getCommonBuildData : BuildDef -> CommonBuildData
@@ -46,6 +48,7 @@ getCommonBuildData buildDef =
     case buildDef of
         BambooDef cd _ -> cd
         TravisDef cd _ -> cd
+        GitlabDef cd _ -> cd
 
 
 type alias Build =
@@ -76,10 +79,12 @@ defaultBuild buildDef =
 type alias AddBuildData =
     { bamboo : Bamboo.BambooData
     , travis : Travis.TravisData
+    , gitlab : Gitlab.GitlabData
     , tab : Int
     , editing : Maybe Build
     , bambooErrors : Bamboo.BambooValidationErrors
     , travisErrors : Travis.TravisValidationErrors
+    , gitlabErrors : Gitlab.GitlabValidationErrors
     , importText : String
     , importError : Maybe String
     }
@@ -100,6 +105,12 @@ initialAddBuildData =
         , branch = ""
         , travisToken = Nothing
         }
+    , gitlab =
+        { serverUrl = ""
+        , token = ""
+        , project = ""
+        , branch = ""
+        }
     , tab = 0
     , editing = Nothing
     , bambooErrors =
@@ -110,6 +121,12 @@ initialAddBuildData =
         { serverUrl = Nothing
         , repository = Nothing
         , branch = Nothing
+        }
+    , gitlabErrors =
+        { serverUrl = Nothing
+        , project = Nothing
+        , branch = Nothing
+        , token = Nothing
         }
     , importText = ""
     , importError = Nothing
@@ -135,12 +152,19 @@ editBuildData build =
                         d
                     _ ->
                         bd.travis
+            , gitlab =
+                case build.def of
+                    GitlabDef i d ->
+                        d
+                    _ ->
+                        bd.gitlab
             , editing =
                 Just build
             , tab =
                 case build.def of
                     BambooDef _ _ -> 0
                     TravisDef _ _ -> 1
+                    GitlabDef _ _ -> 2
         }
 
 
@@ -225,6 +249,7 @@ initialPreferences =
 type PersistedBuild
     = PersistedBambooBuild Tags Bamboo.BambooData
     | PersistedTravisBuild Tags Travis.TravisData
+    | PersistedGitlabBuild Tags Gitlab.GitlabData
 
 
 type alias PersistedData =
@@ -246,6 +271,7 @@ persistedBuildDecoder =
                     case k of
                         "bamboo" -> map (PersistedBambooBuild tags) Bamboo.bambooDataDecoder
                         "travis" -> map (PersistedTravisBuild tags) Travis.travisDataDecoder
+                        "gitlab" -> map (PersistedGitlabBuild tags) Gitlab.gitlabDataDecoder
                         _ -> fail <| "unsupported kind " ++ k
                 )
         )
@@ -310,6 +336,10 @@ encodePersistedData v =
                         (Travis.encodeTravisData True d)
                             ++ [ encodeTags tags ]
 
+                    PersistedGitlabBuild tags d ->
+                        (Gitlab.encodeGitlabData d)
+                            ++ [ encodeTags tags ]
+
         builds =
             v.builds
                 |> List.map pbToValue
@@ -328,6 +358,8 @@ getBuildName buildDef =
             d.plan
         TravisDef _ d ->
             d.repository ++ "/" ++ d.branch
+        GitlabDef _ d ->
+            d.project ++ " " ++ d.branch
 
 
 getDefId : BuildDef -> Int
@@ -335,6 +367,7 @@ getDefId buildDef =
     case buildDef of
         BambooDef cd _ -> cd.id
         TravisDef cd _ -> cd.id
+        GitlabDef cd _ -> cd.id
 
 
 getBuildById : Model -> Int -> Maybe Build
@@ -354,6 +387,8 @@ createPersistedData prefs builds =
                         PersistedBambooBuild cd.tags d
                     TravisDef cd d ->
                         PersistedTravisBuild cd.tags d
+                    GitlabDef cd d ->
+                        PersistedGitlabBuild cd.tags d
             )
     , preferences = prefs
     }

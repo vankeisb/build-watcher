@@ -3,6 +3,7 @@ module View exposing (..)
 
 import Bamboo
 import Common exposing (..)
+import Gitlab
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onWithOptions)
@@ -648,6 +649,11 @@ viewAddTabs model =
                 , Tabs.label
                     [ Options.center
                     ]
+                    [ text "Gitlab"
+                    ]
+                , Tabs.label
+                    [ Options.center
+                    ]
                     [ text "Import JSON"]
                 ]
                 []
@@ -667,6 +673,10 @@ viewAddBuild model =
                     , Travis.canSave model.addBuildData.travis
                     )
                 2 ->
+                    ( gitlabRows model
+                    , Gitlab.canSave model.addBuildData.gitlab
+                    )
+                3 ->
                     ( importBuildRows model
                     , not <| String.isEmpty model.addBuildData.importText
                     )
@@ -871,6 +881,61 @@ travisRows model =
                 []
         ]
 
+gitlabRows : Model -> List (Grid.Cell Msg)
+gitlabRows model =
+    let
+        gitlab =
+            model.addBuildData.gitlab
+        gitlabErrors =
+            model.addBuildData.gitlabErrors
+    in
+        [ formRow <|
+            withHelp "URL of the Gitlab server (e.g. https://gitlab.com)" <|
+            Textfield.render Mdl [8, 1] model.mdl
+                ( tfOpts
+                    [ Textfield.label "Server URL"
+                    , Textfield.value gitlab.serverUrl
+                    , Options.onInput <| onInputAbv ABGitlabServerUrlChanged
+                    , textfieldError gitlabErrors.serverUrl
+                    ]
+                )
+                []
+        , formRow <|
+            withHelp "The project (e.g. rails/rails)" <|
+            Textfield.render Mdl [8, 2] model.mdl
+                ( tfOpts
+                    [ Textfield.label "Project"
+                    , Textfield.value gitlab.project
+                    , Options.onInput <| onInputAbv ABGitlabProjectChanged
+                    , textfieldError gitlabErrors.project
+                    ]
+                )
+                []
+        , formRow <|
+            withHelp "Branch to watch (e.g. master)" <|
+            Textfield.render Mdl [8, 3] model.mdl
+                ( tfOpts
+                    [ Textfield.label "Branch"
+                    , Textfield.floatingLabel
+                    , Textfield.text_
+                    , Textfield.value gitlab.branch
+                    , Options.onInput <| onInputAbv ABGitlabBranchChanged
+                    , textfieldError gitlabErrors.branch
+                    ]
+                )
+                []
+        , formRow <|
+            withHelp "Gitlab token" <|
+            Textfield.render Mdl [8, 4] model.mdl
+                ( tfOpts
+                    [ Textfield.label "Token"
+                    , Textfield.value gitlab.token
+                    , Options.onInput <| onInputAbv ABGitlabTokenChanged
+                    ]
+                )
+                []
+        ]
+
 
 dialog : Model -> Html Msg
 dialog model =
@@ -1029,7 +1094,9 @@ shareBuildDialog model builds =
                             TravisDef cd d ->
                                 Travis.encodeTravisData False d
                                     |> List.append [ encodeTags cd.tags ]
-                    )
+                            GitlabDef cd d ->
+                                Gitlab.encodeGitlabData d
+                                    |> List.append [ encodeTags cd.tags ]                    )
                     builds
     in
         Dialog.view
